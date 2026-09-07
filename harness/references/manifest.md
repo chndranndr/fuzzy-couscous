@@ -119,12 +119,27 @@ For `full`, include every applicable high-autonomy capability with an honest sta
 
 ## v1 migration
 
-`upgrade` and `reconcile` may migrate a v1 manifest in place:
+`upgrade` and `reconcile` may migrate a v1 manifest in place. Preserve the v1 profile, project observation, commands, managed artifacts, capability evidence, and deferred reasons, but never preserve obsolete capability identifiers in the v2 `capabilities` object.
 
-1. Read and preserve the v1 `profile`, project observation, capability statuses, artifact paths, managed artifacts, commands, and deferred reasons.
-2. Set `schema_version` to `2` and add deterministic empty `verify` arrays only where the v1 entry has no observed verification evidence; never invent a command.
-3. Add the v2 capability entries required by the selected profile, marking unknown outcomes `partial`, `deferred`, or `not_applicable` with evidence.
-4. Run the recorded verification mechanisms and fill `verify` only with stable mechanisms that resolve in the current repository.
-5. Reopen and validate the final manifest before reporting success.
+### Capability mapping
 
-Migration must not erase observed capability state or silently turn a missing proof into a passing claim. A v1 manifest remains readable as legacy input until this migration completes.
+| v1 identifier | v2 result | Migration rule |
+| --- | --- | --- |
+| `ui_legibility` | `interactive_legibility` | Copy status, artifacts, and stable verification evidence. |
+| `worktree_isolation` | `workspace_isolation` | Copy status, artifacts, and stable verification evidence; do not assume ports are the only isolated resource. |
+| `architecture_rules` | `architecture_boundaries` | Copy only the boundary evidence. Create `taste_invariants` and `domain_invariants` as `partial` with fresh-observation deferrals; never promote them blindly. |
+| `garbage_collection` | `workspace_cleanup` + `entropy_control` | Copy old evidence to `workspace_cleanup`. Start `entropy_control` as `partial` with a deferral; cache/build cleanup never promotes semantic entropy control. |
+| `internal_tools` | no direct identifier | Preserve its artifacts in `managed_artifacts`. Map to `repository_commands` only as `partial` pending fresh observation; never emit `internal_tools` in v2. |
+| Any other v1 identifier already in the v2 taxonomy | same identifier | Preserve status, artifacts, and stable verification evidence. |
+| Unknown or removed identifier | no capability key | Preserve artifact paths and report an evidence gap against the closest observed v2 capability; do not invent a promotion. |
+
+### Migration algorithm
+
+1. Copy the v1 top-level state and normalize `schema_version` to `2`.
+2. Apply the mapping table in source order. When a split produces multiple capabilities, only the explicitly supported result inherits evidence; every new category without evidence is `partial` or `deferred`.
+3. Preserve every v1 capability artifact in the sorted `managed_artifacts` list, even when its old identifier is dropped.
+4. Rewrite deferred entries through the same mapping. A deferred `garbage_collection` entry produces deferred `workspace_cleanup` and `entropy_control` entries; a deferred `internal_tools` entry targets `repository_commands`.
+5. Add empty `verify` arrays only where no observed mechanism exists. Run validation and fill them only with stable commands that exactly resolve through the v2 `commands` map or with a supported `inspect:` procedure.
+6. Reopen the manifest and reject any obsolete capability key, unresolved verification command, malformed evidence, lost artifact, or status promotion unsupported by fresh evidence.
+
+The migration is intentionally conservative: a v1 `implemented` claim can remain implemented only for the mapped outcome it actually proves. A v1 cache-only GC claim cannot make `entropy_control` implemented. A v1 `internal_tools` claim cannot make `repository_commands` implemented without fresh command evidence.

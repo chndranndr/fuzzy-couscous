@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Run zero-dependency contract checks for the prompt-driven Harness skill.
+"""Run static/reference contract checks for the prompt-driven Harness skill.
 
-Harness has no runtime CLI in this repository. These checks exercise the stable
-command contracts and fixture boundaries without reimplementing project-local
-commands or invoking external services.
+Harness has no runtime CLI in this repository. The default checks exercise
+stable documentation contracts and fixture boundaries without reimplementing
+project-local commands. `--e2e` optionally invokes a user-supplied adapter.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -182,12 +184,115 @@ def manifest_projection(
 
 
 def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
-    """Model the documented v1-to-v2 preservation boundary in memory."""
+    """Apply the documented v1 rename/split migration in memory."""
 
     upgraded = json.loads(json.dumps(v1))
+    v2_capabilities = {
+        "application_scaffold",
+        "knowledge_base",
+        "repository_commands",
+        "quality_checks",
+        "ci",
+        "evaluation",
+        "architecture_boundaries",
+        "taste_invariants",
+        "domain_invariants",
+        "observability",
+        "interactive_legibility",
+        "workspace_isolation",
+        "execution_planning",
+        "review_loop",
+        "workspace_cleanup",
+        "entropy_control",
+    }
+    renamed = {
+        "ui_legibility": "interactive_legibility",
+        "worktree_isolation": "workspace_isolation",
+    }
+    capabilities: dict[str, dict[str, Any]] = {}
+    deferred = list(upgraded.get("deferred", []))
+    managed = set(upgraded.get("managed_artifacts", []))
+
+    def entry_copy(entry: dict[str, Any], *, verify: list[str] | None = None) -> dict[str, Any]:
+        return {
+            "status": entry.get("status", "partial"),
+            "artifacts": sorted(set(entry.get("artifacts", []))),
+            "verify": list(entry.get("verify", [])) if verify is None else verify,
+        }
+
+    def add(name: str, entry: dict[str, Any], *, verify: list[str] | None = None) -> None:
+        if name not in capabilities:
+            capabilities[name] = entry_copy(entry, verify=verify)
+
+    def defer(name: str, reason: str) -> None:
+        item = {
+            "capability": name,
+            "reason": reason,
+            "next_step": f"Re-observe {name} and rerun $harness upgrade full.",
+        }
+        if item not in deferred:
+            deferred.append(item)
+
+    for old_name, entry in upgraded.get("capabilities", {}).items():
+        managed.update(entry.get("artifacts", []))
+        if old_name == "architecture_rules":
+            add("architecture_boundaries", entry)
+            for name in ("taste_invariants", "domain_invariants"):
+                add(name, {"status": "partial", "artifacts": []}, verify=[])
+                defer(name, "v1 architecture_rules cannot prove this invariant category.")
+        elif old_name in renamed:
+            add(renamed[old_name], entry)
+        elif old_name == "garbage_collection":
+            add("workspace_cleanup", entry)
+            add(
+                "entropy_control",
+                {"status": "partial", "artifacts": []},
+                verify=[],
+            )
+            defer(
+                "entropy_control",
+                "v1 garbage_collection evidence does not prove semantic entropy control.",
+            )
+        elif old_name == "internal_tools":
+            if "repository_commands" not in capabilities:
+                add(
+                    "repository_commands",
+                    {"status": "partial", "artifacts": entry.get("artifacts", [])},
+                    verify=[],
+                )
+            defer(
+                "repository_commands",
+                "v1 internal_tools requires fresh observation before repository-command promotion.",
+            )
+        elif old_name in v2_capabilities:
+            add(old_name, entry)
+
+    mapped_deferred: list[dict[str, Any]] = []
+    deferred_names = {
+        "ui_legibility": ["interactive_legibility"],
+        "worktree_isolation": ["workspace_isolation"],
+        "architecture_rules": ["architecture_boundaries"],
+        "garbage_collection": ["workspace_cleanup", "entropy_control"],
+        "internal_tools": ["repository_commands"],
+    }
+    for item in deferred:
+        names = deferred_names.get(item.get("capability"), [item.get("capability")])
+        for name in names:
+            if name in v2_capabilities:
+                mapped = dict(item)
+                mapped["capability"] = name
+                mapped.setdefault("next_step", f"Re-observe {name} and rerun $harness upgrade full.")
+                mapped_deferred.append(mapped)
+
     upgraded["schema_version"] = 2
-    for capability in upgraded.get("capabilities", {}).values():
-        capability.setdefault("verify", [])
+    upgraded["capabilities"] = {
+        name: capabilities[name] for name in sorted(capabilities)
+    }
+    upgraded["managed_artifacts"] = sorted(managed)
+    upgraded["deferred"] = sorted(
+        mapped_deferred,
+        key=lambda item: (item["capability"], item["reason"], item["next_step"]),
+    )
     return upgraded
 
 def reconcile_fixture(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
@@ -248,12 +353,35 @@ def harden_fixture(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     if changed:
         guardrail_path.parent.mkdir(parents=True, exist_ok=True)
         guardrail_path.write_text(guardrail, encoding="utf-8")
+    manifest_path = root / config["manifest"]
+    manifest = upgrade_manifest(json.loads(read_text(manifest_path)))
+    guardrail_command = f"python {config['guardrail']}"
+    manifest.setdefault("commands", {})["check"] = guardrail_command
+    capability_name = {
+        "architecture-boundary-gap": "architecture_boundaries",
+        "verification-gap": "quality_checks",
+        "domain-invariant-gap": "domain_invariants",
+    }.get(failure["category"], "repository_commands")
+    manifest.setdefault("capabilities", {})[capability_name] = {
+        "status": "implemented",
+        "artifacts": [config["guardrail"]],
+        "verify": [guardrail_command],
+    }
+    manifest["managed_artifacts"] = sorted(
+        set(manifest.get("managed_artifacts", [])) | {config["guardrail"]}
+    )
+    rendered_manifest = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    manifest_changed = read_text(manifest_path) != rendered_manifest
+    if manifest_changed:
+        manifest_path.write_text(rendered_manifest, encoding="utf-8")
     return {
         "category": failure["category"],
         "remediation": "executable guardrail",
         "guardrail": config["guardrail"],
         "failure": config["failure"],
-        "changed": changed,
+        "manifest": config["manifest"],
+        "verify": guardrail_command,
+        "changed": changed or manifest_changed,
     }
 
 
@@ -266,6 +394,71 @@ def run_guardrail(root: Path, relative_path: str) -> subprocess.CompletedProcess
         check=False,
     )
 
+def run_optional_e2e() -> None:
+    """Run copied-fixture E2E checks through a user-supplied skill adapter."""
+
+    command_spec = os.environ.get("HARNESS_E2E_COMMAND")
+    if not command_spec:
+        print("SKIP optional E2E: set HARNESS_E2E_COMMAND to a Harness adapter")
+        return
+    adapter = shlex.split(command_spec, posix=os.name != "nt")
+    if not adapter:
+        raise AssertionError("HARNESS_E2E_COMMAND is empty")
+    cases = {
+        "init": tuple(sorted(REQUIRED_FIXTURES)),
+        "status": tuple(sorted(REQUIRED_FIXTURES)),
+        "doctor": tuple(sorted(REQUIRED_FIXTURES)),
+        "upgrade": tuple(sorted(REQUIRED_FIXTURES)),
+        "reconcile": ("dirty-repo",),
+        "harden": ("dirty-repo",),
+        "gc-dry-run": ("dirty-repo",),
+    }
+
+    def invoke(operation: str, target: Path) -> None:
+        result = subprocess.run(
+            [*adapter, operation, str(target)],
+            cwd=target,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode:
+            raise AssertionError(
+                f"E2E {operation} failed for {target.name}: {result.stderr or result.stdout}"
+            )
+
+    for operation, fixture_names in cases.items():
+        for name in fixture_names:
+            source, _ = load_fixture(name)
+            with tempfile.TemporaryDirectory() as temporary:
+                target = Path(temporary) / name
+                shutil.copytree(source, target)
+                if operation == "init":
+                    invoke(operation, target)
+                    first = snapshot(target)
+                    invoke(operation, target)
+                    assert_equal(snapshot(target), first, f"E2E init did not converge for {name}")
+                elif operation == "reconcile":
+                    invoke(operation, target)
+                    first = snapshot(target)
+                    invoke(operation, target)
+                    assert_equal(
+                        snapshot(target),
+                        first,
+                        f"E2E reconcile changed unchanged fixture {name}",
+                    )
+                elif operation in {"status", "doctor", "gc-dry-run"}:
+                    before = snapshot(target)
+                    invoke(operation, target)
+                    assert_equal(
+                        snapshot(target),
+                        before,
+                        f"E2E {operation} wrote fixture {name}",
+                    )
+                else:
+                    invoke(operation, target)
+    print("PASS optional Harness E2E adapter")
+
 
 def inspect_fixture(root: Path) -> dict[str, Any]:
     """Read-only status/doctor probe used to prove the fixture boundary."""
@@ -276,26 +469,33 @@ def inspect_fixture(root: Path) -> dict[str, Any]:
     }
 
 
-def gc_categories(root: Path) -> dict[str, list[str]]:
-    """Classify known generated paths without deleting anything."""
+def gc_categories(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    """Classify generated paths and explicitly evidenced entropy findings."""
 
     cleanup: list[str] = []
-    entropy: list[str] = []
     for path in root.rglob("*"):
         if not path.is_file():
             continue
         relative = path.relative_to(root).as_posix()
         if relative.startswith(("build/", ".cache/", "coverage/")):
             cleanup.append(relative)
-        elif relative.startswith(("src/", "app/")):
-            entropy.append(relative)
-    return {"workspace_cleanup": sorted(cleanup), "entropy_control": sorted(entropy)}
+    entropy_evidence = {
+        relative: reason
+        for relative, reason in metadata.get("entropy_findings", {}).items()
+        if (root / relative).is_file()
+    }
+    return {
+        "workspace_cleanup": sorted(cleanup),
+        "entropy_control": sorted(entropy_evidence),
+        "entropy_evidence": entropy_evidence,
+    }
 
-def gc_dry_run(root: Path) -> dict[str, list[str]]:
+
+def gc_dry_run(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     """Run the gc evidence scan without mutating the fixture."""
 
     before = snapshot(root)
-    categories = gc_categories(root)
+    categories = gc_categories(root, metadata)
     report = {
         **categories,
         "deletion_candidates": list(categories["workspace_cleanup"]),
@@ -384,9 +584,12 @@ def test_manifest_contract() -> None:
     for capability in REQUIRED_CAPABILITIES:
         if capability not in manifest_doc:
             raise AssertionError(f"manifest taxonomy omits {capability}")
-    for obsolete in ("garbage_collection", "worktree_isolation", "ui_legibility"):
-        if obsolete in manifest_doc:
-            raise AssertionError(f"obsolete capability remains: {obsolete}")
+    taxonomy_match = re.search(r"The v2 taxonomy.*?```text\n(.*?)\n```", manifest_doc, re.DOTALL)
+    if not taxonomy_match:
+        raise AssertionError("manifest taxonomy block is missing")
+    for obsolete in ("garbage_collection", "worktree_isolation", "ui_legibility", "internal_tools"):
+        if obsolete in taxonomy_match.group(1):
+            raise AssertionError(f"obsolete capability remains in v2 taxonomy: {obsolete}")
 
 
 def test_fixture_shapes() -> None:
@@ -464,6 +667,25 @@ def test_harden_feedback_loop() -> None:
         assert_equal(result["guardrail"], config["guardrail"], "hardening chose the wrong guardrail")
         if not result["changed"] or not (target / config["guardrail"]).is_file():
             raise AssertionError("hardening did not create a durable guardrail")
+        manifest = json.loads(read_text(target / config["manifest"]))
+        capability = manifest["capabilities"]["architecture_boundaries"]
+        assert_equal(manifest["schema_version"], 2, "hardening did not migrate manifest evidence")
+        assert_equal(
+            capability,
+            {
+                "status": "implemented",
+                "artifacts": [config["guardrail"]],
+                "verify": [result["verify"]],
+            },
+            "hardening did not link the guardrail in the manifest",
+        )
+        assert_equal(
+            manifest["commands"]["check"],
+            result["verify"],
+            "hardening recorded a verify command that does not resolve",
+        )
+        if config["guardrail"] not in manifest["managed_artifacts"]:
+            raise AssertionError("hardening omitted its guardrail from managed artifacts")
         if run_guardrail(target, config["guardrail"]).returncode == 0:
             raise AssertionError("new guardrail did not detect the original failure")
         assert_equal(
@@ -494,7 +716,7 @@ def test_status_and_doctor_are_read_only() -> None:
             doctor = inspect_fixture(target)
             manifest_projection(metadata)
             upgrade_manifest({"schema_version": 1, "capabilities": {}})
-            gc_dry_run(target)
+            gc_dry_run(target, metadata)
             after = snapshot(target)
             assert_equal(status["manifest"], True, f"status could not inspect {name}")
             assert_equal(doctor["files"], sorted(before), f"doctor changed the file view for {name}")
@@ -529,6 +751,69 @@ def test_upgrade_preserves_state() -> None:
         }
         assert_equal(upgraded["capabilities"], expected, f"upgrade lost observed state for {name}")
 
+def test_v1_migration_mapping() -> None:
+    source, metadata = load_fixture("dirty-repo")
+    v1 = json.loads(read_text(source / metadata["v1_manifest"]))
+    upgraded = upgrade_manifest(v1)
+    expected_capabilities = {
+        "architecture_boundaries": {
+            "status": "implemented",
+            "artifacts": ["scripts/architecture-check"],
+            "verify": ["npm run architecture:check"],
+        },
+        "domain_invariants": {"status": "partial", "artifacts": [], "verify": []},
+        "entropy_control": {"status": "partial", "artifacts": [], "verify": []},
+        "interactive_legibility": {
+            "status": "implemented",
+            "artifacts": ["scripts/ui-check"],
+            "verify": ["npm run ui:check"],
+        },
+        "repository_commands": {
+            "status": "partial",
+            "artifacts": ["scripts/repo-inspect"],
+            "verify": [],
+        },
+        "taste_invariants": {"status": "partial", "artifacts": [], "verify": []},
+        "workspace_cleanup": {
+            "status": "implemented",
+            "artifacts": ["scripts/gc"],
+            "verify": ["npm run gc"],
+        },
+        "workspace_isolation": {
+            "status": "partial",
+            "artifacts": ["scripts/isolate"],
+            "verify": ["npm run isolate"],
+        },
+    }
+    assert_equal(upgraded["schema_version"], 2, "v1 migration did not set schema v2")
+    assert_equal(upgraded["capabilities"], expected_capabilities, "v1 capability mapping drifted")
+    assert_equal(
+        upgraded["managed_artifacts"],
+        [
+            "AGENTS.md",
+            "scripts/architecture-check",
+            "scripts/gc",
+            "scripts/isolate",
+            "scripts/repo-inspect",
+            "scripts/ui-check",
+        ],
+        "v1 artifacts were not preserved",
+    )
+    if any(name in upgraded["capabilities"] for name in (
+        "ui_legibility",
+        "worktree_isolation",
+        "architecture_rules",
+        "garbage_collection",
+        "internal_tools",
+    )):
+        raise AssertionError("obsolete v1 capability identifier survived migration")
+    deferred = {item["capability"]: item for item in upgraded["deferred"]}
+    for capability in ("domain_invariants", "entropy_control", "repository_commands", "taste_invariants"):
+        if capability not in deferred:
+            raise AssertionError(f"v1 migration lacks fresh-evidence deferral for {capability}")
+    if upgraded["capabilities"]["entropy_control"]["status"] == "implemented":
+        raise AssertionError("cache-only garbage_collection promoted entropy control")
+
 def test_reconcile_converges() -> None:
     source, metadata = load_fixture("dirty-repo")
     config = metadata["reconcile"]
@@ -555,17 +840,20 @@ def test_reconcile_converges() -> None:
 
 
 def test_gc_separates_categories() -> None:
-    source, _ = load_fixture("dirty-repo")
+    source, metadata = load_fixture("dirty-repo")
     before = snapshot(source)
-    report = gc_dry_run(source)
+    report = gc_dry_run(source, metadata)
     if not report["workspace_cleanup"]:
         raise AssertionError("gc fixture lacks generated cleanup evidence")
-    if not report["entropy_control"]:
-        raise AssertionError("gc fixture lacks product entropy evidence")
+    if report["entropy_control"] != ["docs/architecture.md"]:
+        raise AssertionError("gc did not use explicit entropy evidence")
+    if report["entropy_evidence"].get("docs/architecture.md") != "stale project-shape assumption":
+        raise AssertionError("gc lost entropy evidence")
     if set(report["workspace_cleanup"]) & set(report["entropy_control"]):
         raise AssertionError("gc categories overlap")
-    if "src/product.py" in report["deletion_candidates"]:
-        raise AssertionError("gc --dry-run treated product code as deletable")
+    for product in ("src/product.py", "src/unsafe_boundary.py"):
+        if product in report["deletion_candidates"] or product in report["entropy_control"]:
+            raise AssertionError("gc reported product code as cleanup or entropy")
     assert_equal(snapshot(source), before, "gc --dry-run changed the dirty fixture")
 
 
@@ -581,7 +869,7 @@ def test_documentation_agrees() -> None:
             ROOT / "harness" / "references" / "workflows.md",
         )
     )
-    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$harness harden", "gc --dry-run"):
+    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$harness harden", "gc --dry-run", "static/reference", "HARNESS_E2E_COMMAND"):
         if token not in docs:
             raise AssertionError(f"documentation does not agree on {token}")
 
@@ -596,6 +884,7 @@ def main() -> int:
         test_harden_feedback_loop,
         test_status_and_doctor_are_read_only,
         test_upgrade_preserves_state,
+        test_v1_migration_mapping,
         test_reconcile_converges,
         test_gc_separates_categories,
         test_documentation_agrees,
@@ -603,7 +892,9 @@ def main() -> int:
     for test in tests:
         test()
         print(f"PASS {test.__name__}")
-    print(f"{len(tests)} Harness contract checks passed")
+    print(f"{len(tests)} Harness static/reference checks passed")
+    if "--e2e" in sys.argv:
+        run_optional_e2e()
     return 0
 
 

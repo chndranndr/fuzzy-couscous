@@ -4,13 +4,15 @@ Do not claim a capability is implemented because a file exists. Require runnable
 
 ## Self-evaluation
 
-This skill repository is prompt-driven rather than a runtime CLI. Its zero-dependency contract suite is `python tests/run.py`; it exercises the documented command invariants against purpose-built fixtures without pretending to implement project-local commands.
+The default `python tests/run.py` suite is static/reference coverage for this prompt-driven skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex executed `$harness`.
+
+For behavioral proof, configure `HARNESS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
 
 The suite must cover:
 
 - `init` producing a usable v2 manifest projection and converging on a second run;
 - `init auto` selecting a profile from fixture evidence, reporting non-empty reasons, and honoring explicit profile overrides without over-harnessing the simple fixture;
-- `harden` classifying a deterministic fixture failure, selecting an executable guardrail, detecting the original failure, passing after remediation, and preserving user files;
+- `harden` classifying a deterministic fixture failure, selecting an executable guardrail, detecting the original failure, passing after remediation, updating matching manifest capability/`verify` evidence, and preserving user files;
 - `status` performing zero project checks and zero writes;
 - `doctor` performing check-only inspection and leaving tracked fixture files unchanged;
 - `upgrade` preserving existing stack/package choices while adding only requested capability deltas;

@@ -24,6 +24,11 @@
     "failure": "failures/direct-scoring.json",
     "guardrail": "checks/no_direct_scoring_write.py",
     "marker": "DIRECT_SCORING_WRITE",
-    "category": "architecture-boundary-gap"
+    "category": "architecture-boundary-gap",
+    "manifest": ".harness/manifest.json"
+  },
+  "v1_manifest": "v1-manifest.json",
+  "entropy_findings": {
+    "docs/architecture.md": "stale project-shape assumption"
   }
 }

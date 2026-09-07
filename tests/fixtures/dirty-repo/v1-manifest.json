@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "profile": "full",
+  "project": {
+    "kind": "web-app",
+    "stacks": ["node", "typescript"]
+  },
+  "capabilities": {
+    "ui_legibility": {
+      "status": "implemented",
+      "artifacts": ["scripts/ui-check"],
+      "verify": ["npm run ui:check"]
+    },
+    "worktree_isolation": {
+      "status": "partial",
+      "artifacts": ["scripts/isolate"],
+      "verify": ["npm run isolate"]
+    },
+    "architecture_rules": {
+      "status": "implemented",
+      "artifacts": ["scripts/architecture-check"],
+      "verify": ["npm run architecture:check"]
+    },
+    "garbage_collection": {
+      "status": "implemented",
+      "artifacts": ["scripts/gc"],
+      "verify": ["npm run gc"]
+    },
+    "internal_tools": {
+      "status": "implemented",
+      "artifacts": ["scripts/repo-inspect"],
+      "verify": ["npm run inspect"]
+    }
+  },
+  "managed_artifacts": ["AGENTS.md"],
+  "commands": {
+    "setup": "npm install",
+    "check": "npm run check",
+    "test": "npm test",
+    "gc": "npm run gc"
+  },
+  "deferred": []
+}
