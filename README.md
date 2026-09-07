@@ -30,13 +30,13 @@ The repository is a skill package rather than a runtime CLI. Its zero-dependency
 python tests/run.py
 ```
 
-These checks validate documented contracts and deterministic fixture models; they do not claim that Codex executed the prompt-level skill. An optional E2E adapter can exercise the real skill against copied fixtures:
+These checks validate documented contracts and deterministic fixture models; they do not claim that Codex executed the prompt-level skill. A credentialed E2E adapter can exercise the real skill against copied fixtures:
 
 ```text
 HARNESS_E2E_COMMAND=<adapter> python tests/run.py --e2e
 ```
 
-The adapter receives `<operation> <fixture-path>` for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`. E2E checks assert init/reconcile convergence and read-only status/doctor/dry-run behavior; CI runs the static suite because Codex execution may require local authentication.
+The adapter receives `<operation> <fixture-path>` for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`. E2E checks assert init/reconcile convergence and read-only status/doctor/dry-run behavior; `--e2e` exits nonzero when the adapter is unset. CI runs the static suite because Codex execution may require local authentication.
 
 ## Profiles
 

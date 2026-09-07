@@ -6,7 +6,7 @@ Do not claim a capability is implemented because a file exists. Require runnable
 
 The default `python tests/run.py` suite is static/reference coverage for this prompt-driven skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex executed `$harness`.
 
-For behavioral proof, configure `HARNESS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
+For behavioral proof, configure `HARNESS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. An explicit `--e2e` run exits nonzero when no adapter is configured. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
 
 The suite must cover:
 

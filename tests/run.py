@@ -3,7 +3,7 @@
 
 Harness has no runtime CLI in this repository. The default checks exercise
 stable documentation contracts and fixture boundaries without reimplementing
-project-local commands. `--e2e` optionally invokes a user-supplied adapter.
+project-local commands. `--e2e` requires a user-supplied adapter.
 """
 
 from __future__ import annotations
@@ -442,8 +442,7 @@ def run_optional_e2e() -> None:
 
     command_spec = os.environ.get("HARNESS_E2E_COMMAND")
     if not command_spec:
-        print("SKIP optional E2E: set HARNESS_E2E_COMMAND to a Harness adapter")
-        return
+        raise SystemExit("HARNESS_E2E_COMMAND is required for --e2e")
     adapter = shlex.split(command_spec, posix=os.name != "nt")
     if not adapter:
         raise AssertionError("HARNESS_E2E_COMMAND is empty")
@@ -501,6 +500,18 @@ def run_optional_e2e() -> None:
                 else:
                     invoke(operation, target)
     print("PASS optional Harness E2E adapter")
+
+def test_e2e_requires_adapter() -> None:
+    command_spec = os.environ.pop("HARNESS_E2E_COMMAND", None)
+    try:
+        try:
+            run_optional_e2e()
+        except SystemExit:
+            return
+        raise AssertionError("--e2e did not require an adapter")
+    finally:
+        if command_spec is not None:
+            os.environ["HARNESS_E2E_COMMAND"] = command_spec
 
 
 def inspect_fixture(root: Path) -> dict[str, Any]:
@@ -965,6 +976,7 @@ def main() -> int:
         test_reconcile_converges,
         test_gc_separates_categories,
         test_documentation_agrees,
+        test_e2e_requires_adapter,
     ]
     for test in tests:
         test()
