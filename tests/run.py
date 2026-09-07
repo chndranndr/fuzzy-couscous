@@ -344,7 +344,7 @@ def reconcile_fixture(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     config = metadata["reconcile"]
     changes: list[str] = []
     manifest_path = root / config["manifest"]
-    manifest = json.loads(read_text(manifest_path))
+    manifest = upgrade_manifest(json.loads(read_text(manifest_path)))
     manifest["schema_version"] = 2
     manifest["profile"] = metadata["profile"]
     manifest["project"] = {
@@ -900,6 +900,19 @@ def test_reconcile_converges() -> None:
         reconciled_manifest = json.loads(read_text(target / config["manifest"]))
         assert_equal(reconciled_manifest["schema_version"], 2, "reconcile left a v1 manifest")
         assert_equal(reconciled_manifest["project"]["kind"], "cli", "reconcile kept stale project kind")
+        if any(name in reconciled_manifest["capabilities"] for name in (
+            "garbage_collection",
+            "legacy_reconcile",
+        )):
+            raise AssertionError("reconcile left obsolete v1 capability identifiers")
+        gap_sources = {
+            item["source_capability"]
+            for item in reconciled_manifest["evidence_gaps"]
+        }
+        if gap_sources != {"legacy_reconcile", "legacy_review"}:
+            raise AssertionError("reconcile dropped unmapped v1 evidence gaps")
+        if "scripts/legacy" not in reconciled_manifest["managed_artifacts"]:
+            raise AssertionError("reconcile dropped legacy artifact evidence")
         assert_equal(snapshot(source), source_before, "reconcile mutated the source fixture")
 
 
