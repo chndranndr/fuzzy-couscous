@@ -1,0 +1,11 @@
+{
+  "name": "existing-ts-web",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

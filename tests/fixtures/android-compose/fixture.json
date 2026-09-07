@@ -1,0 +1,14 @@
+{
+  "name": "android-compose",
+  "kind": "mobile-app",
+  "stacks": ["android", "compose", "kotlin"],
+  "profile": "full",
+  "interactive_surface": "android",
+  "user_owned": [],
+  "signals": {
+    "runnable_surfaces": 2,
+    "existing_checks": 2,
+    "agent_autonomy": "high",
+    "concurrent_work": true
+  }
+}

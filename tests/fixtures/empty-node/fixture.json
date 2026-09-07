@@ -1,0 +1,14 @@
+{
+  "name": "empty-node",
+  "kind": "empty",
+  "stacks": ["node"],
+  "profile": "lite",
+  "interactive_surface": false,
+  "user_owned": [],
+  "signals": {
+    "runnable_surfaces": 1,
+    "existing_checks": 0,
+    "agent_autonomy": "low",
+    "concurrent_work": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "dirty-repo",
+  "kind": "cli",
+  "stacks": ["python"],
+  "profile": "lite",
+  "interactive_surface": false,
+  "user_owned": ["user-notes.txt"],
+  "untracked_user_owned": ["user-notes.txt"],
+  "reconcile": {
+    "manifest": ".harness/manifest.json",
+    "documentation": "docs/architecture.md",
+    "replacements": {
+      "web-service": "cli",
+      "node": "python"
+    }
+  },
+  "signals": {
+    "runnable_surfaces": 1,
+    "existing_checks": 0,
+    "agent_autonomy": "low",
+    "concurrent_work": false
+  },
+  "harden": {
+    "failure": "failures/direct-scoring.json",
+    "guardrail": "checks/no_direct_scoring_write.py",
+    "marker": "DIRECT_SCORING_WRITE",
+    "category": "architecture-boundary-gap"
+  }
+}

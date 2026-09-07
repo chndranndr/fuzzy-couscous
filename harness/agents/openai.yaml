@@ -1,7 +1,7 @@
 interface:
   display_name: "Harness"
   short_description: "Build an adaptive agent-ready repo harness"
-  default_prompt: "Use $harness init standard to make this repository agent-ready."
+  default_prompt: "Use $harness init auto to make this repository agent-ready; preserve explicit profile choices and report verification evidence."
 
 policy:
   allow_implicit_invocation: true

@@ -1,0 +1,18 @@
+{
+  "name": "existing-ts-web",
+  "kind": "web-app",
+  "stacks": ["node", "typescript"],
+  "profile": "standard",
+  "interactive_surface": "web",
+  "user_owned": ["package.json"],
+  "commands": {
+    "check": "npm run check",
+    "test": "npm test"
+  },
+  "signals": {
+    "runnable_surfaces": 2,
+    "existing_checks": 2,
+    "agent_autonomy": "standard",
+    "concurrent_work": false
+  }
+}
