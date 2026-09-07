@@ -46,7 +46,8 @@ Use schema version `2`:
       "reason": "No metrics backend is available in the local environment.",
       "next_step": "Select or expose the existing metrics backend, then rerun $harness upgrade full."
     }
-  ]
+  ],
+  "evidence_gaps": []
 }
 ```
 
@@ -87,6 +88,7 @@ Validation rejects non-string or empty entries, unknown inspection procedures, m
 - `managed_artifacts` is a stable, sorted list of files created or materially structured by Harness. It grants no overwrite authority.
 - `commands` contains the stable slots `setup`, `dev`, `format`, `check`, `test`, `eval`, `doctor`, and `gc` in that order. Record only found or verified command strings and use `null` when a slot is not applicable; do not invent commands.
 - Every deferred item contains exactly `capability`, `reason`, and `next_step` and corresponds to a `partial` or `deferred` capability.
+- `evidence_gaps` is a stable, sorted array of unknown or removed source capabilities that could not be mapped. Each item contains exactly `source_capability`, `artifacts`, `reason`, and `next_step`; artifact paths are repository-relative. It is an evidence report, not a capability status, and must not be silently dropped during migration.
 
 Keep keys and arrays deterministically ordered, use `/` in repository-relative paths, and store no transient run result, timestamp, hash, secret, user-specific absolute path, or speculative future work.
 
@@ -131,15 +133,15 @@ For `full`, include every applicable high-autonomy capability with an honest sta
 | `garbage_collection` | `workspace_cleanup` + `entropy_control` | Copy old evidence to `workspace_cleanup`. Start `entropy_control` as `partial` with a deferral; cache/build cleanup never promotes semantic entropy control. |
 | `internal_tools` | no direct identifier | Preserve its artifacts in `managed_artifacts`. Map to `repository_commands` only as `partial` pending fresh observation; never emit `internal_tools` in v2. |
 | Any other v1 identifier already in the v2 taxonomy | same identifier | Preserve status, artifacts, and stable verification evidence. |
-| Unknown or removed identifier | no capability key | Preserve artifact paths and report an evidence gap against the closest observed v2 capability; do not invent a promotion. |
+| Unknown or removed identifier | no capability key | Preserve artifact paths and append an `evidence_gaps` item with the source identifier, artifacts, reason, and next step; do not invent a promotion or silently drop deferred evidence. |
 
 ### Migration algorithm
 
 1. Copy the v1 top-level state and normalize `schema_version` to `2`.
 2. Apply the mapping table in source order. When a split produces multiple capabilities, only the explicitly supported result inherits evidence; every new category without evidence is `partial` or `deferred`.
 3. Preserve every v1 capability artifact in the sorted `managed_artifacts` list, even when its old identifier is dropped.
-4. Rewrite deferred entries through the same mapping. A deferred `garbage_collection` entry produces deferred `workspace_cleanup` and `entropy_control` entries; a deferred `internal_tools` entry targets `repository_commands`.
+4. Rewrite deferred entries through the same mapping. A deferred `garbage_collection` entry produces deferred `workspace_cleanup` and `entropy_control` entries; a deferred `internal_tools` entry targets `repository_commands`; an unknown deferred identifier becomes an `evidence_gaps` item with its original reason and next step.
 5. Add empty `verify` arrays only where no observed mechanism exists. Run validation and fill them only with stable commands that exactly resolve through the v2 `commands` map or with a supported `inspect:` procedure.
-6. Reopen the manifest and reject any obsolete capability key, unresolved verification command, malformed evidence, lost artifact, or status promotion unsupported by fresh evidence.
+6. Reopen the manifest and reject any obsolete capability key, unresolved verification command, malformed evidence, lost artifact, missing `evidence_gaps` record, or status promotion unsupported by fresh evidence.
 
 The migration is intentionally conservative: a v1 `implemented` claim can remain implemented only for the mapped outcome it actually proves. A v1 cache-only GC claim cannot make `entropy_control` implemented. A v1 `internal_tools` claim cannot make `repository_commands` implemented without fresh command evidence.

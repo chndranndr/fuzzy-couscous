@@ -211,7 +211,9 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
     }
     capabilities: dict[str, dict[str, Any]] = {}
     deferred = list(upgraded.get("deferred", []))
+    evidence_gaps = list(upgraded.get("evidence_gaps", []))
     managed = set(upgraded.get("managed_artifacts", []))
+    legacy_artifacts: dict[str, list[str]] = {}
 
     def entry_copy(entry: dict[str, Any], *, verify: list[str] | None = None) -> dict[str, Any]:
         return {
@@ -233,8 +235,25 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
         if item not in deferred:
             deferred.append(item)
 
+    def add_evidence_gap(
+        source: str,
+        artifacts: list[str],
+        reason: str,
+        next_step: str,
+    ) -> None:
+        item = {
+            "source_capability": source,
+            "artifacts": sorted(set(artifacts)),
+            "reason": reason,
+            "next_step": next_step,
+        }
+        if item not in evidence_gaps:
+            evidence_gaps.append(item)
+
     for old_name, entry in upgraded.get("capabilities", {}).items():
-        managed.update(entry.get("artifacts", []))
+        artifacts = list(entry.get("artifacts", []))
+        legacy_artifacts[old_name] = artifacts
+        managed.update(artifacts)
         if old_name == "architecture_rules":
             add("architecture_boundaries", entry)
             for name in ("taste_invariants", "domain_invariants"):
@@ -257,7 +276,7 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
             if "repository_commands" not in capabilities:
                 add(
                     "repository_commands",
-                    {"status": "partial", "artifacts": entry.get("artifacts", [])},
+                    {"status": "partial", "artifacts": artifacts},
                     verify=[],
                 )
             defer(
@@ -266,6 +285,13 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
             )
         elif old_name in v2_capabilities:
             add(old_name, entry)
+        else:
+            add_evidence_gap(
+                old_name,
+                artifacts,
+                "v1 capability has no v2 mapping; re-observe before classification.",
+                f"Inspect {old_name} and rerun $harness reconcile.",
+            )
 
     mapped_deferred: list[dict[str, Any]] = []
     deferred_names = {
@@ -276,13 +302,22 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
         "internal_tools": ["repository_commands"],
     }
     for item in deferred:
-        names = deferred_names.get(item.get("capability"), [item.get("capability")])
-        for name in names:
-            if name in v2_capabilities:
-                mapped = dict(item)
-                mapped["capability"] = name
-                mapped.setdefault("next_step", f"Re-observe {name} and rerun $harness upgrade full.")
-                mapped_deferred.append(mapped)
+        source = item.get("capability") or "unknown"
+        names = deferred_names.get(source, [source])
+        valid_names = [name for name in names if name in v2_capabilities]
+        if not valid_names:
+            add_evidence_gap(
+                source,
+                legacy_artifacts.get(source, []),
+                item.get("reason", "v1 capability has no v2 mapping; re-observe before classification."),
+                item.get("next_step", f"Inspect {source} and rerun $harness reconcile."),
+            )
+            continue
+        for name in valid_names:
+            mapped = dict(item)
+            mapped["capability"] = name
+            mapped.setdefault("next_step", f"Re-observe {name} and rerun $harness upgrade full.")
+            mapped_deferred.append(mapped)
 
     upgraded["schema_version"] = 2
     upgraded["capabilities"] = {
@@ -292,6 +327,14 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
     upgraded["deferred"] = sorted(
         mapped_deferred,
         key=lambda item: (item["capability"], item["reason"], item["next_step"]),
+    )
+    upgraded["evidence_gaps"] = sorted(
+        evidence_gaps,
+        key=lambda item: (
+            item["source_capability"],
+            item["reason"],
+            item["next_step"],
+        ),
     )
     return upgraded
 
@@ -536,6 +579,8 @@ def test_manifest_contract() -> None:
         raise AssertionError("manifest v2 example is missing")
     example = json.loads(example_match.group(1))
     assert_equal(example["schema_version"], 2, "manifest example is not schema v2")
+    if example.get("evidence_gaps") != []:
+        raise AssertionError("manifest example lacks an explicit empty evidence-gap list")
     if "verify" not in example["capabilities"]["architecture_boundaries"]:
         raise AssertionError("manifest example lacks verification evidence")
 
@@ -794,10 +839,29 @@ def test_v1_migration_mapping() -> None:
             "scripts/architecture-check",
             "scripts/gc",
             "scripts/isolate",
+            "scripts/legacy-gate",
             "scripts/repo-inspect",
             "scripts/ui-check",
         ],
         "v1 artifacts were not preserved",
+    )
+    assert_equal(
+        upgraded["evidence_gaps"],
+        [
+            {
+                "source_capability": "legacy_quality_gate",
+                "artifacts": ["scripts/legacy-gate"],
+                "reason": "v1 capability has no v2 mapping; re-observe before classification.",
+                "next_step": "Inspect legacy_quality_gate and rerun $harness reconcile.",
+            },
+            {
+                "source_capability": "legacy_review",
+                "artifacts": [],
+                "reason": "Legacy review capability needs classification.",
+                "next_step": "Inspect the legacy review process.",
+            },
+        ],
+        "unknown v1 capabilities did not produce evidence gaps",
     )
     if any(name in upgraded["capabilities"] for name in (
         "ui_legibility",

@@ -30,6 +30,11 @@
       "status": "implemented",
       "artifacts": ["scripts/repo-inspect"],
       "verify": ["npm run inspect"]
+    },
+    "legacy_quality_gate": {
+      "status": "implemented",
+      "artifacts": ["scripts/legacy-gate"],
+      "verify": ["npm run legacy-gate"]
     }
   },
   "managed_artifacts": ["AGENTS.md"],
@@ -39,5 +44,11 @@
     "test": "npm test",
     "gc": "npm run gc"
   },
-  "deferred": []
+  "deferred": [
+    {
+      "capability": "legacy_review",
+      "reason": "Legacy review capability needs classification.",
+      "next_step": "Inspect the legacy review process."
+    }
+  ]
 }
