@@ -15,6 +15,7 @@ $kuskus reconcile [path]
 $kuskus harden <failure-description|issue|log-path>
 $kuskus gc [--dry-run] [path]
 ```
+The command contract is shared across runtimes: use `$kuskus ...` in Codex and `/skill:kuskus ...` in Pi or OMP.
 
 `init` defaults to `auto`. It inspects repository complexity, project shape, existing capabilities, and expected autonomy, reports the selected profile and reasoning before writes, then reuses the repository's own stack. Explicit `lite`, `standard`, or `full` always wins.
 
@@ -60,36 +61,63 @@ Delegation is execution policy, not a correctness invariant:
 
 ## Install
 
-Kuskus uses the same `skills/kuskus/SKILL.md` file for Codex and pi/OMP. Choose one supported installation path.
+The skill body is shared across runtimes; discovery paths and explicit invocation syntax differ.
 
-### Codex direct skill install
+### Codex
 
-Clone the repository, then expose `skills/kuskus` at `~/.codex/skills/kuskus`.
+Expose `skills/kuskus` at `~/.agents/skills/kuskus`, the canonical user-level Agents skill location.
 
 Windows PowerShell:
 
 ```powershell
 git clone https://github.com/chndranndr/fuzzy-couscous.git
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.codex\skills\kuskus" -Target "$PWD\fuzzy-couscous\skills\kuskus"
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.agents\skills\kuskus" -Target "$PWD\fuzzy-couscous\skills\kuskus"
 ```
 
 macOS or Linux:
 
 ```bash
 git clone https://github.com/chndranndr/fuzzy-couscous.git
-ln -s "$(pwd)/fuzzy-couscous/skills/kuskus" ~/.codex/skills/kuskus
+mkdir -p ~/.agents/skills
+ln -s "$(pwd)/fuzzy-couscous/skills/kuskus" ~/.agents/skills/kuskus
 ```
 
-### pi/OMP marketplace install
+The deprecated `~/.codex/skills/kuskus` compatibility location remains supported. On the next Codex turn, invoke `$kuskus init auto`.
 
-Add the Git marketplace, then install the `kuskus` plugin:
+### Pi
+
+Pi discovers the same skill from either of these global paths:
+
+```text
+~/.pi/agent/skills/kuskus
+~/.agents/skills/kuskus
+```
+
+For a project-local install, use `.pi/skills/kuskus` or `.agents/skills/kuskus`. Copy or symlink the repository's `skills/kuskus` directory, then invoke `/skill:kuskus init auto`.
+
+### OMP
+
+Add the Git marketplace, then install the `kuskus` plugin globally:
 
 ```text
 omp plugin marketplace add chndranndr/fuzzy-couscous
 omp plugin install kuskus@kuskus
 ```
 
-For environments using the canonical Agents skill provider, the project-local direct-symlink path is `.agents/skills/kuskus`, targeting the same repository `skills/kuskus` directory.
+After installation, invoke `/skill:kuskus init auto`. OMP installs the same `skills/kuskus/SKILL.md` discovered by Pi.
+
+## Migrating from Harness
+
+Update existing installs rather than keeping a second skill copy:
+
+| Previous | Kuskus |
+| --- | --- |
+| `$harness ...` | `$kuskus ...` |
+| `HARNESS_E2E_COMMAND` | `KUSKUS_E2E_COMMAND` |
+| `harness/` skill link | `skills/kuskus/` skill link |
+
+`.harness/manifest.json` remains unchanged for compatibility with existing persisted receipts. Kuskus does not provide a `$harness` alias; update the invocation, link target, and E2E environment variable.
 
 ## Ground rules
 

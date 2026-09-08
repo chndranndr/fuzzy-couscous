@@ -4,7 +4,7 @@ Do not claim a capability is implemented because a file exists. Require runnable
 
 ## Self-evaluation
 
-The default `python tests/run.py` suite is static/reference coverage for this prompt-driven Kuskus skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex or pi executed `$kuskus`.
+The default `python tests/run.py` suite is static/reference coverage for this prompt-driven Kuskus skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex invoked `$kuskus` or Pi/OMP invoked `/skill:kuskus`.
 
 For behavioral proof, configure `KUSKUS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. An explicit `--e2e` run exits nonzero when no adapter is configured. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
 
@@ -53,7 +53,7 @@ Upgrade preserves the previous working checks and adds no lower-profile regressi
 
 ### Harden
 
-- `$kuskus harden` accepts a textual failure description without an issue tracker and may consume a readable issue or log reference.
+- `$kuskus harden` in Codex or `/skill:kuskus harden` in Pi/OMP accepts a textual failure description without an issue tracker and may consume a readable issue or log reference.
 - It classifies the missing capability as a knowledge, verification, architecture-boundary, domain-invariant, observability, agent-legibility/tooling, or review gap.
 - Deterministic recurring failures prefer tests, validators, lints, architecture checks, or evaluations over growth of `AGENTS.md`.
 - The hardening change preserves existing user-owned rules and includes regression/evaluation evidence that detects the original failure class where practical.

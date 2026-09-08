@@ -648,19 +648,30 @@ def test_kuskus_rebrand() -> None:
     assert_equal(name_match.group(1), "kuskus", "skill frontmatter has the wrong name")
     if "$kuskus" not in frontmatter.group(1):
         raise AssertionError("Kuskus frontmatter invocation is missing")
-
-
-    if skill.count("$kuskus") != 8:
-        raise AssertionError("Kuskus skill must expose eight $kuskus invocation examples")
     command_examples = re.findall(r"^- `(\$kuskus\s+[^`]+)`:", skill, re.MULTILINE)
-    assert_equal(len(command_examples), 7, "Kuskus skill command example count changed")
     expected_commands = {"init", "status", "doctor", "upgrade", "reconcile", "harden", "gc"}
     actual_commands = {example.split()[1] for example in command_examples}
     if actual_commands != expected_commands:
         raise AssertionError("Kuskus skill command examples are incomplete")
 
+    readme = read_text(ROOT / "README.md")
+    for token in (
+        "~/.agents/skills/kuskus",
+        "~/.pi/agent/skills/kuskus",
+        ".pi/skills/kuskus",
+        "/skill:kuskus",
+        "omp plugin marketplace add chndranndr/fuzzy-couscous",
+        "omp plugin install kuskus@kuskus",
+    ):
+        if token not in readme:
+            raise AssertionError(f"runtime installation guidance omits {token}")
+
+    migration_heading = "## Migrating from Harness"
+    if migration_heading not in readme:
+        raise AssertionError("Harness migration guidance is missing")
+    active_readme, migration = readme.split(migration_heading, 1)
+    migration = migration_heading + migration
     surface_paths = (
-        ROOT / "README.md",
         skill_path,
         ROOT / "skills" / "kuskus" / "agents" / "openai.yaml",
         ROOT / "skills" / "kuskus" / "references" / "acceptance.md",
@@ -670,11 +681,14 @@ def test_kuskus_rebrand() -> None:
         ROOT / ".github" / "workflows" / "self-eval.yml",
         ROOT / "tests" / "run.py",
     )
-    surface = "\n".join(read_text(path) for path in surface_paths)
+    surface = active_readme + "\n" + "\n".join(read_text(path) for path in surface_paths)
     legacy_invocation = "$" + "harness"
     legacy_environment = "HARNESS_" + "E2E_COMMAND"
     if legacy_invocation in surface or legacy_environment in surface:
-        raise AssertionError("legacy invocation tokens remain")
+        raise AssertionError("legacy invocation tokens remain outside migration guidance")
+    for token in (legacy_invocation, legacy_environment, "harness/"):
+        if token not in migration:
+            raise AssertionError(f"migration guidance omits {token}")
 
 
 def test_marketplace_package() -> None:

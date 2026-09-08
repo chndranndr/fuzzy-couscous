@@ -1,6 +1,6 @@
 ---
 name: kuskus
-description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local workflows for coding agents. Use when a user invokes $kuskus or asks to make a project agent-legible with repository knowledge, tests, CI, observability, evals, review loops, or maintenance tooling. Do not use for ordinary feature work that does not change the repository's Kuskus setup.
+description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local workflows for coding agents. Use when a user invokes $kuskus in Codex or /skill:kuskus in Pi/OMP, or asks to make a project agent-legible with repository knowledge, tests, CI, observability, evals, review loops, or maintenance tooling. Do not use for ordinary feature work that does not change the repository's Kuskus setup.
 metadata:
   short-description: Build an adaptive agent-ready coding workflow
 ---
