@@ -44,7 +44,7 @@ Use schema version `2`:
     {
       "capability": "observability",
       "reason": "No metrics backend is available in the local environment.",
-      "next_step": "Select or expose the existing metrics backend, then rerun $harness upgrade full."
+      "next_step": "Select or expose the existing metrics backend, then rerun $kuskus upgrade full."
     }
   ],
   "evidence_gaps": []
@@ -85,7 +85,7 @@ The supported deterministic inspection vocabulary is closed:
 - `inspect: manifest matches observed artifacts`
 
 Validation rejects non-string or empty entries, unknown inspection procedures, malformed command tokens, shell syntax, absolute or parent-traversal paths, timestamps, hashes, secrets, transient results, and machine-specific values. `doctor` validates this grammar before attempting to resolve or run evidence.
-- `managed_artifacts` is a stable, sorted list of files created or materially structured by Harness. It grants no overwrite authority.
+- `managed_artifacts` is a stable, sorted list of files created or materially structured by Kuskus. It grants no overwrite authority.
 - `commands` contains the stable slots `setup`, `dev`, `format`, `check`, `test`, `eval`, `doctor`, and `gc` in that order. Record only found or verified command strings and use `null` when a slot is not applicable; do not invent commands.
 - Every deferred item contains exactly `capability`, `reason`, and `next_step` and corresponds to a `partial` or `deferred` capability.
 - `evidence_gaps` is a stable, sorted array of unknown or removed source capabilities that could not be mapped. Each item contains exactly `source_capability`, `artifacts`, `reason`, and `next_step`; artifact paths are repository-relative. It is an evidence report, not a capability status, and must not be silently dropped during migration.

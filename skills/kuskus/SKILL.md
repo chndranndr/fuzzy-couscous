@@ -1,23 +1,23 @@
 ---
-name: harness
-description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local engineering harnesses for Codex. Use when a user invokes $harness or asks to make a project agent-legible with repository knowledge, tests, CI, observability, evals, review loops, or maintenance tooling. Do not use for ordinary feature work that does not change the repository harness.
+name: kuskus
+description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local workflows for coding agents. Use when a user invokes $kuskus or asks to make a project agent-legible with repository knowledge, tests, CI, observability, evals, review loops, or maintenance tooling. Do not use for ordinary feature work that does not change the repository's Kuskus setup.
 metadata:
-  short-description: Build an adaptive agent-ready repo harness
+  short-description: Build an adaptive agent-ready coding workflow
 ---
 
-# Harness
+# Kuskus
 
 Make the repository easy for coding agents to understand, run, verify, review, and maintain. Adapt the existing project instead of imposing a universal template. Follow the repository-as-system-of-record principles in [OpenAI's Harness Engineering guide](https://openai.com/index/harness-engineering/).
 
 ## Commands
 
-- `init [auto|lite|standard|full] [requirements-path]`: initialize the current directory. Default to `auto`.
-- `status [path]`: report capabilities and drift without running checks or changing files.
-- `doctor [path]`: run safe checks and report failures without changing tracked files.
-- `upgrade [lite|standard|full] [path]`: add only the delta to the requested profile. With no profile, refresh the current profile and manifest schema.
-- `reconcile [path]`: rescan repository truth and align stale instructions, documentation, mappings, and manifest evidence without deleting tracked artifacts.
-- `harden <failure-description|issue|log-path>`: convert an observed failure into the smallest durable, verified guardrail.
-- `gc [--dry-run] [path]`: report and, after approval where required, perform conservative workspace cleanup and semantic entropy control. `--dry-run` never writes or deletes.
+- `$kuskus init [auto|lite|standard|full] [requirements-path]`: initialize the current directory. Default to `auto`.
+- `$kuskus status [path]`: report capabilities and drift without running checks or changing files.
+- `$kuskus doctor [path]`: run safe checks and report failures without changing tracked files.
+- `$kuskus upgrade [lite|standard|full] [path]`: add only the delta to the requested profile. With no profile, refresh the current profile and manifest schema.
+- `$kuskus reconcile [path]`: rescan repository truth and align stale instructions, documentation, mappings, and manifest evidence without deleting tracked artifacts.
+- `$kuskus harden <failure-description|issue|log-path>`: convert an observed failure into the smallest durable, verified guardrail.
+- `$kuskus gc [--dry-run] [path]`: report and, after approval where required, perform conservative workspace cleanup and semantic entropy control. `--dry-run` never writes or deletes.
 
 Treat natural-language equivalents as the same commands. For `init`, a supplied path is requirements input unless the user explicitly identifies a target directory; the target otherwise remains the current directory. For other commands, a supplied path is the target. `harden` accepts plain text, an issue reference, or a readable log path; it does not require a specific issue tracker.
 

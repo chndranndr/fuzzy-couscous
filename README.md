@@ -1,19 +1,19 @@
-# Harness
+# Kuskus
 
-A Codex skill for making a repository easier for coding agents to understand, run, verify, and maintain.
+A file-backed skill for making repositories easier for coding agents to understand, run, verify, and maintain across Codex, pi, and OMP.
 
 It follows the ideas in [OpenAI's Harness Engineering guide](https://openai.com/index/harness-engineering/), while staying adaptive: existing stacks and tooling are reused instead of replaced with a fixed template.
 
 ## What it does
 
 ```text
-$harness init [auto|lite|standard|full] [requirements-path]
-$harness status [path]
-$harness doctor [path]
-$harness upgrade [lite|standard|full] [path]
-$harness reconcile [path]
-$harness harden <failure-description|issue|log-path>
-$harness gc [--dry-run] [path]
+$kuskus init [auto|lite|standard|full] [requirements-path]
+$kuskus status [path]
+$kuskus doctor [path]
+$kuskus upgrade [lite|standard|full] [path]
+$kuskus reconcile [path]
+$kuskus harden <failure-description|issue|log-path>
+$kuskus gc [--dry-run] [path]
 ```
 
 `init` defaults to `auto`. It inspects repository complexity, project shape, existing capabilities, and expected autonomy, reports the selected profile and reasoning before writes, then reuses the repository's own stack. Explicit `lite`, `standard`, or `full` always wins.
@@ -24,19 +24,19 @@ $harness gc [--dry-run] [path]
 
 `gc --dry-run` performs the same evidence scan without deleting or repairing anything. It labels every finding as `workspace_cleanup` or `entropy_control`; arbitrary product code is never a deletion candidate.
 
-The repository is a skill package rather than a runtime CLI. Its zero-dependency static/reference suite is runnable with:
+The repository is a file-backed skill package rather than a runtime CLI. Its zero-dependency static/reference suite is runnable with:
 
 ```text
 python tests/run.py
 ```
 
-These checks validate documented contracts and deterministic fixture models; they do not claim that Codex executed the prompt-level skill. A credentialed E2E adapter can exercise the real skill against copied fixtures:
+These checks validate documented contracts and deterministic fixture models; they do not claim that Codex or pi executed the prompt-level skill. A credentialed E2E adapter can exercise the real skill against copied fixtures:
 
 ```text
-HARNESS_E2E_COMMAND=<adapter> python tests/run.py --e2e
+KUSKUS_E2E_COMMAND=<adapter> python tests/run.py --e2e
 ```
 
-The adapter receives `<operation> <fixture-path>` for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`. E2E checks assert init/reconcile convergence and read-only status/doctor/dry-run behavior; `--e2e` exits nonzero when the adapter is unset. CI runs the static suite because Codex execution may require local authentication.
+The adapter receives `<operation> <fixture-path>` for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`. E2E checks assert init/reconcile convergence and read-only status/doctor/dry-run behavior; `--e2e` exits nonzero when the adapter is unset. CI runs the static suite because credentialed agent execution may require local authentication.
 
 ## Profiles
 
@@ -60,27 +60,40 @@ Delegation is execution policy, not a correctness invariant:
 
 ## Install
 
-Clone the repository, then expose the `harness` directory under your Codex skills directory.
+Kuskus uses the same `skills/kuskus/SKILL.md` file for Codex and pi/OMP. Choose one supported installation path.
+
+### Codex direct skill install
+
+Clone the repository, then expose `skills/kuskus` at `~/.codex/skills/kuskus`.
 
 Windows PowerShell:
 
 ```powershell
 git clone https://github.com/chndranndr/fuzzy-couscous.git
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.codex\skills\harness" -Target "$PWD\fuzzy-couscous\harness"
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.codex\skills\kuskus" -Target "$PWD\fuzzy-couscous\skills\kuskus"
 ```
 
 macOS or Linux:
 
 ```bash
 git clone https://github.com/chndranndr/fuzzy-couscous.git
-ln -s "$(pwd)/fuzzy-couscous/harness" ~/.codex/skills/harness
+ln -s "$(pwd)/fuzzy-couscous/skills/kuskus" ~/.codex/skills/kuskus
 ```
 
-The skill will be available as `$harness` on the next Codex turn.
+### pi/OMP marketplace install
+
+Add the Git marketplace, then install the `kuskus` plugin:
+
+```text
+omp plugin marketplace add chndranndr/fuzzy-couscous
+omp plugin install kuskus@kuskus
+```
+
+For environments using the canonical Agents skill provider, the project-local direct-symlink path is `.agents/skills/kuskus`, targeting the same repository `skills/kuskus` directory.
 
 ## Ground rules
 
-Harness preserves existing architecture, package choices, CI, tests, observability, documentation, and uncommitted work. It does not provision cloud resources, read likely secrets, create automations, or commit and push changes on behalf of a project.
+Kuskus preserves existing architecture, package choices, CI, tests, observability, documentation, and uncommitted work. It does not provision cloud resources, read likely secrets, create automations, or commit and push changes on behalf of a project.
 
 Repository state remains the source of truth. `.harness/manifest.json` is a v2 receipt and capability map; its `verify` entries point to stable local commands or deterministic inspection procedures.
 
@@ -91,14 +104,17 @@ Workspace cleanup and semantic entropy control are separate capabilities. Cache/
 ```text
 .github/
 └── workflows/self-eval.yml
-harness/
-├── SKILL.md
-├── agents/openai.yaml
-└── references/
-    ├── acceptance.md
-    ├── manifest.md
-    ├── profiles.md
-    └── workflows.md
+.omp-plugin/
+└── marketplace.json
+skills/
+└── kuskus/
+    ├── SKILL.md
+    ├── agents/openai.yaml
+    └── references/
+        ├── acceptance.md
+        ├── manifest.md
+        ├── profiles.md
+        └── workflows.md
 tests/
 ├── fixtures/
 └── run.py

@@ -4,9 +4,9 @@ Do not claim a capability is implemented because a file exists. Require runnable
 
 ## Self-evaluation
 
-The default `python tests/run.py` suite is static/reference coverage for this prompt-driven skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex executed `$harness`.
+The default `python tests/run.py` suite is static/reference coverage for this prompt-driven Kuskus skill. It validates manifest grammar, migration helpers, deterministic fixture models, and documentation contracts; it is not behavioral proof that Codex or pi executed `$kuskus`.
 
-For behavioral proof, configure `HARNESS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. An explicit `--e2e` run exits nonzero when no adapter is configured. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
+For behavioral proof, configure `KUSKUS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. An explicit `--e2e` run exits nonzero when no adapter is configured. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
 
 The suite must cover:
 
@@ -53,7 +53,7 @@ Upgrade preserves the previous working checks and adds no lower-profile regressi
 
 ### Harden
 
-- `$harness harden` accepts a textual failure description without an issue tracker and may consume a readable issue or log reference.
+- `$kuskus harden` accepts a textual failure description without an issue tracker and may consume a readable issue or log reference.
 - It classifies the missing capability as a knowledge, verification, architecture-boundary, domain-invariant, observability, agent-legibility/tooling, or review gap.
 - Deterministic recurring failures prefer tests, validators, lints, architecture checks, or evaluations over growth of `AGENTS.md`.
 - The hardening change preserves existing user-owned rules and includes regression/evaluation evidence that detects the original failure class where practical.
@@ -100,7 +100,7 @@ Trivial work does not need a plan. Plans are updated with actual progress and ve
 ## Auto profile and adapter acceptance
 
 - `init auto` selects a profile from observed repository evidence and reports why before writing.
-- Auto selection does not silently over-harness simple repositories.
+- Auto selection does not silently over-configure simple repositories.
 - Existing explicit profile selection always overrides auto selection.
 - At least web, Android, CLI/API, and data-pipeline shapes have explicit legibility guidance.
 - Isolation is evaluated as collision-free concurrent execution, not mandatory unique ports.
@@ -117,4 +117,4 @@ Keep the report compact and evidence-based:
 5. Review-loop outcome and any hardening classification.
 6. Deferred, partial, or not-applicable capabilities with the next action.
 
-If a requested outcome remains deferred, report partial completion rather than calling the harness complete.
+If a requested outcome remains deferred, report partial completion rather than calling the result complete.

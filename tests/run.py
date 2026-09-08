@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Run static/reference contract checks for the prompt-driven Harness skill.
+"""Run static/reference contract checks for the prompt-driven Kuskus skill.
 
-Harness has no runtime CLI in this repository. The default checks exercise
+Kuskus has no runtime CLI in this repository. The default checks exercise
 stable documentation contracts and fixture boundaries without reimplementing
 project-local commands. `--e2e` requires a user-supplied adapter.
 """
@@ -255,7 +255,7 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
         item = {
             "capability": name,
             "reason": reason,
-            "next_step": f"Re-observe {name} and rerun $harness upgrade full.",
+            "next_step": f"Re-observe {name} and rerun $kuskus upgrade full.",
         }
         if item not in deferred:
             deferred.append(item)
@@ -318,7 +318,7 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
                 old_name,
                 artifacts,
                 "v1 capability has no v2 mapping; re-observe before classification.",
-                f"Inspect {old_name} and rerun $harness reconcile.",
+                f"Inspect {old_name} and rerun $kuskus reconcile.",
             )
 
     mapped_deferred: list[dict[str, Any]] = []
@@ -338,13 +338,13 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
                 source,
                 legacy_artifacts.get(source, []),
                 item.get("reason", "v1 capability has no v2 mapping; re-observe before classification."),
-                item.get("next_step", f"Inspect {source} and rerun $harness reconcile."),
+                item.get("next_step", f"Inspect {source} and rerun $kuskus reconcile."),
             )
             continue
         for name in valid_names:
             mapped = dict(item)
             mapped["capability"] = name
-            mapped.setdefault("next_step", f"Re-observe {name} and rerun $harness upgrade full.")
+            mapped.setdefault("next_step", f"Re-observe {name} and rerun $kuskus upgrade full.")
             mapped_deferred.append(mapped)
 
     upgraded["schema_version"] = 2
@@ -478,12 +478,12 @@ def run_guardrail(root: Path, relative_path: str) -> subprocess.CompletedProcess
 def run_optional_e2e() -> None:
     """Run copied-fixture E2E checks through a user-supplied skill adapter."""
 
-    command_spec = os.environ.get("HARNESS_E2E_COMMAND")
+    command_spec = os.environ.get("KUSKUS_E2E_COMMAND")
     if not command_spec:
-        raise SystemExit("HARNESS_E2E_COMMAND is required for --e2e")
+        raise SystemExit("KUSKUS_E2E_COMMAND is required for --e2e")
     adapter = shlex.split(command_spec, posix=os.name != "nt")
     if not adapter:
-        raise AssertionError("HARNESS_E2E_COMMAND is empty")
+        raise AssertionError("KUSKUS_E2E_COMMAND is empty")
     cases = {
         "init": tuple(sorted(REQUIRED_FIXTURES)),
         "status": tuple(sorted(REQUIRED_FIXTURES)),
@@ -537,10 +537,10 @@ def run_optional_e2e() -> None:
                     )
                 else:
                     invoke(operation, target)
-    print("PASS optional Harness E2E adapter")
+    print("PASS optional Kuskus E2E adapter")
 
 def test_e2e_requires_adapter() -> None:
-    command_spec = os.environ.pop("HARNESS_E2E_COMMAND", None)
+    command_spec = os.environ.pop("KUSKUS_E2E_COMMAND", None)
     try:
         try:
             run_optional_e2e()
@@ -551,7 +551,7 @@ def test_e2e_requires_adapter() -> None:
         raise AssertionError("--e2e did not require an adapter")
     finally:
         if command_spec is not None:
-            os.environ["HARNESS_E2E_COMMAND"] = command_spec
+            os.environ["KUSKUS_E2E_COMMAND"] = command_spec
 
 
 def inspect_fixture(root: Path) -> dict[str, Any]:
@@ -618,8 +618,8 @@ def assert_equal(left: Any, right: Any, message: str) -> None:
 
 
 def test_command_surface() -> None:
-    skill = read_text(ROOT / "harness" / "SKILL.md")
-    workflows = read_text(ROOT / "harness" / "references" / "workflows.md")
+    skill = read_text(ROOT / "skills" / "kuskus" / "SKILL.md")
+    workflows = read_text(ROOT / "skills" / "kuskus" / "references" / "workflows.md")
     required = (
         "init [auto|lite|standard|full]",
         "gc [--dry-run] [path]",
@@ -636,9 +636,71 @@ def test_command_surface() -> None:
         if token not in workflows:
             raise AssertionError(f"missing workflow: {token}")
 
+def test_kuskus_rebrand() -> None:
+    skill_path = ROOT / "skills" / "kuskus" / "SKILL.md"
+    skill = read_text(skill_path)
+    frontmatter = re.match(r"^---\n(.*?)\n---\n", skill, re.DOTALL)
+    if not frontmatter:
+        raise AssertionError("Kuskus skill frontmatter is missing")
+    name_match = re.search(r"^name:\s*(\S+)\s*$", frontmatter.group(1), re.MULTILINE)
+    if not name_match:
+        raise AssertionError("Kuskus skill frontmatter name is missing")
+    assert_equal(name_match.group(1), "kuskus", "skill frontmatter has the wrong name")
+    if "$kuskus" not in frontmatter.group(1):
+        raise AssertionError("Kuskus frontmatter invocation is missing")
+
+
+    if skill.count("$kuskus") != 8:
+        raise AssertionError("Kuskus skill must expose eight $kuskus invocation examples")
+    command_examples = re.findall(r"^- `(\$kuskus\s+[^`]+)`:", skill, re.MULTILINE)
+    assert_equal(len(command_examples), 7, "Kuskus skill command example count changed")
+    expected_commands = {"init", "status", "doctor", "upgrade", "reconcile", "harden", "gc"}
+    actual_commands = {example.split()[1] for example in command_examples}
+    if actual_commands != expected_commands:
+        raise AssertionError("Kuskus skill command examples are incomplete")
+
+    surface_paths = (
+        ROOT / "README.md",
+        skill_path,
+        ROOT / "skills" / "kuskus" / "agents" / "openai.yaml",
+        ROOT / "skills" / "kuskus" / "references" / "acceptance.md",
+        ROOT / "skills" / "kuskus" / "references" / "manifest.md",
+        ROOT / "skills" / "kuskus" / "references" / "profiles.md",
+        ROOT / "skills" / "kuskus" / "references" / "workflows.md",
+        ROOT / ".github" / "workflows" / "self-eval.yml",
+        ROOT / "tests" / "run.py",
+    )
+    surface = "\n".join(read_text(path) for path in surface_paths)
+    legacy_invocation = "$" + "harness"
+    legacy_environment = "HARNESS_" + "E2E_COMMAND"
+    if legacy_invocation in surface or legacy_environment in surface:
+        raise AssertionError("legacy invocation tokens remain")
+
+
+def test_marketplace_package() -> None:
+    catalog = json.loads(read_text(ROOT / ".omp-plugin" / "marketplace.json"))
+    assert_equal(catalog.get("name"), "kuskus", "marketplace has the wrong name")
+    assert_equal(catalog.get("owner", {}).get("name"), "chndranndr", "marketplace owner is wrong")
+    assert_equal(
+        catalog.get("metadata", {}).get("homepage"),
+        "https://github.com/chndranndr/fuzzy-couscous",
+        "marketplace homepage is wrong",
+    )
+    plugins = catalog.get("plugins")
+    if not isinstance(plugins, list):
+        raise AssertionError("marketplace plugins list is missing")
+    plugin = next((item for item in plugins if item.get("name") == "kuskus"), None)
+    if plugin is None:
+        raise AssertionError("kuskus plugin is missing from the marketplace")
+    assert_equal(plugin.get("source"), "./", "kuskus plugin source is wrong")
+    if not (ROOT / "skills" / "kuskus" / "SKILL.md").is_file():
+        raise AssertionError("shared Kuskus skill file is missing")
+
+
+
 
 def test_manifest_contract() -> None:
-    manifest_doc = read_text(ROOT / "harness" / "references" / "manifest.md")
+    manifest_doc = read_text(ROOT / "skills" / "kuskus" / "references" / "manifest.md")
     example_match = re.search(r"```json\n(.*?)\n```", manifest_doc, re.DOTALL)
     if not example_match:
         raise AssertionError("manifest v2 example is missing")
@@ -955,7 +1017,7 @@ def test_v1_migration_mapping() -> None:
                 "source_capability": "legacy_quality_gate",
                 "artifacts": ["scripts/legacy-gate"],
                 "reason": "v1 capability has no v2 mapping; re-observe before classification.",
-                "next_step": "Inspect legacy_quality_gate and rerun $harness reconcile.",
+                "next_step": "Inspect legacy_quality_gate and rerun $kuskus reconcile.",
             },
             {
                 "source_capability": "legacy_review",
@@ -1074,14 +1136,14 @@ def test_documentation_agrees() -> None:
         read_text(path)
         for path in (
             ROOT / "README.md",
-            ROOT / "harness" / "SKILL.md",
-            ROOT / "harness" / "references" / "acceptance.md",
-            ROOT / "harness" / "references" / "manifest.md",
-            ROOT / "harness" / "references" / "profiles.md",
-            ROOT / "harness" / "references" / "workflows.md",
+            ROOT / "skills" / "kuskus" / "SKILL.md",
+            ROOT / "skills" / "kuskus" / "references" / "acceptance.md",
+            ROOT / "skills" / "kuskus" / "references" / "manifest.md",
+            ROOT / "skills" / "kuskus" / "references" / "profiles.md",
+            ROOT / "skills" / "kuskus" / "references" / "workflows.md",
         )
     )
-    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$harness harden", "gc --dry-run", "static/reference", "HARNESS_E2E_COMMAND"):
+    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$kuskus harden", "gc --dry-run", "static/reference", "KUSKUS_E2E_COMMAND"):
         if token not in docs:
             raise AssertionError(f"documentation does not agree on {token}")
 
@@ -1089,6 +1151,8 @@ def test_documentation_agrees() -> None:
 def main() -> int:
     tests = [
         test_command_surface,
+        test_kuskus_rebrand,
+        test_marketplace_package,
         test_manifest_contract,
         test_fixture_shapes,
         test_init_is_convergent,
@@ -1105,7 +1169,7 @@ def main() -> int:
     for test in tests:
         test()
         print(f"PASS {test.__name__}")
-    print(f"{len(tests)} Harness static/reference checks passed")
+    print(f"{len(tests)} Kuskus static/reference checks passed")
     if "--e2e" in sys.argv:
         run_optional_e2e()
     return 0

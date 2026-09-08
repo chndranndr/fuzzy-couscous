@@ -1,4 +1,4 @@
-name: Harness self-evaluation
+name: Kuskus self-evaluation
 
 on:
   pull_request:
