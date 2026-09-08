@@ -667,10 +667,13 @@ def test_kuskus_rebrand() -> None:
             raise AssertionError(f"runtime installation guidance omits {token}")
 
     migration_heading = "## Migrating from Harness"
-    if migration_heading not in readme:
-        raise AssertionError("Harness migration guidance is missing")
-    active_readme, migration = readme.split(migration_heading, 1)
+    ground_rules_heading = "## Ground rules"
+    if migration_heading not in readme or ground_rules_heading not in readme:
+        raise AssertionError("bounded Harness migration guidance is missing")
+    active_readme, tail = readme.split(migration_heading, 1)
+    migration, trailing_readme = tail.split(ground_rules_heading, 1)
     migration = migration_heading + migration
+    active_readme += ground_rules_heading + trailing_readme
     surface_paths = (
         skill_path,
         ROOT / "skills" / "kuskus" / "agents" / "openai.yaml",
