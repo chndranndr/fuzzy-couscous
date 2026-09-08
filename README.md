@@ -107,17 +107,6 @@ omp plugin install kuskus@kuskus
 
 After installation, invoke `/skill:kuskus init auto`. OMP installs the same `skills/kuskus/SKILL.md` discovered by Pi.
 
-## Migrating from Harness
-
-Update existing installs rather than keeping a second skill copy:
-
-| Previous | Kuskus |
-| --- | --- |
-| `$harness ...` | `$kuskus ...` |
-| `HARNESS_E2E_COMMAND` | `KUSKUS_E2E_COMMAND` |
-| `harness/` skill link | `skills/kuskus/` skill link |
-
-`.harness/manifest.json` remains unchanged for compatibility with existing persisted receipts. Kuskus does not provide a `$harness` alias; update the invocation, link target, and E2E environment variable.
 
 ## Ground rules
 
