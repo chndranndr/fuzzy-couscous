@@ -506,7 +506,9 @@ def test_e2e_requires_adapter() -> None:
     try:
         try:
             run_optional_e2e()
-        except SystemExit:
+        except SystemExit as error:
+            if error.code in (None, 0):
+                raise AssertionError("--e2e did not fail without an adapter")
             return
         raise AssertionError("--e2e did not require an adapter")
     finally:
@@ -924,6 +926,11 @@ def test_reconcile_converges() -> None:
             raise AssertionError("reconcile dropped unmapped v1 evidence gaps")
         if "scripts/legacy" not in reconciled_manifest["managed_artifacts"]:
             raise AssertionError("reconcile dropped legacy artifact evidence")
+        workspace_cleanup = reconciled_manifest["capabilities"].get("workspace_cleanup")
+        if not workspace_cleanup or "scripts/gc" not in workspace_cleanup["artifacts"]:
+            raise AssertionError("reconcile dropped mapped workspace cleanup evidence")
+        if reconciled_manifest["commands"].get("gc") != "npm run gc":
+            raise AssertionError("reconcile dropped the existing gc command")
         assert_equal(snapshot(source), source_before, "reconcile mutated the source fixture")
 
 
