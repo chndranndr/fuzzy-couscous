@@ -1,0 +1,17 @@
+{
+  "name": "kuskus",
+  "owner": {
+    "name": "chndranndr"
+  },
+  "metadata": {
+    "description": "A file-backed skill for making repositories easier for coding agents to understand, run, verify, and maintain.",
+    "homepage": "https://github.com/chndranndr/fuzzy-couscous"
+  },
+  "plugins": [
+    {
+      "name": "kuskus",
+      "source": "./",
+      "description": "A file-backed coding-agent skill for Codex, pi, and OMP."
+    }
+  ]
+}

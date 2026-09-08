@@ -20,7 +20,7 @@ Use the smallest profile that closes the observed development loop:
 - `standard` for an active product, library, API, or data project with multiple checks or contributors;
 - `full` for high-autonomy, multi-surface, agent-heavy, or independently evaluated projects.
 
-Report the selected profile and the evidence behind it before writes. Do not silently over-harness a simple repository. An explicit `lite`, `standard`, or `full` request always overrides auto selection.
+Report the selected profile and the evidence behind it before writes. Do not silently over-configure a simple repository. An explicit `lite`, `standard`, or `full` request always overrides auto selection.
 
 ## Lite
 

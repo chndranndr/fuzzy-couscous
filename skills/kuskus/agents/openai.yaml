@@ -1,0 +1,8 @@
+interface:
+  display_name: "Kuskus"
+  short_description: "Build an adaptive agent-ready coding workflow"
+  default_prompt: "Use $kuskus init auto to make this repository agent-ready; preserve explicit profile choices and report verification evidence."
+
+policy:
+  allow_implicit_invocation: true
+
