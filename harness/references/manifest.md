@@ -127,12 +127,12 @@ For `full`, include every applicable high-autonomy capability with an honest sta
 
 | v1 identifier | v2 result | Migration rule |
 | --- | --- | --- |
-| `ui_legibility` | `interactive_legibility` | Copy status, artifacts, and stable verification evidence. |
-| `worktree_isolation` | `workspace_isolation` | Copy status, artifacts, and stable verification evidence; do not assume ports are the only isolated resource. |
+| `ui_legibility` | `interactive_legibility` | Copy status and artifacts; keep only verification entries that exactly resolve through the v2 `commands` map, and downgrade unsupported `implemented` evidence to `partial`. |
+| `worktree_isolation` | `workspace_isolation` | Copy status and artifacts; keep only resolvable verification evidence; do not assume ports are the only isolated resource. |
 | `architecture_rules` | `architecture_boundaries` | Copy only the boundary evidence. Create `taste_invariants` and `domain_invariants` as `partial` with fresh-observation deferrals; never promote them blindly. |
 | `garbage_collection` | `workspace_cleanup` + `entropy_control` | Copy old evidence to `workspace_cleanup`. Start `entropy_control` as `partial` with a deferral; cache/build cleanup never promotes semantic entropy control. |
 | `internal_tools` | no direct identifier | Preserve its artifacts in `managed_artifacts`. Map to `repository_commands` only as `partial` pending fresh observation; never emit `internal_tools` in v2. |
-| Any other v1 identifier already in the v2 taxonomy | same identifier | Preserve status, artifacts, and stable verification evidence. |
+| Any other v1 identifier already in the v2 taxonomy | same identifier | Preserve status and artifacts; retain only stable verification entries that exactly resolve through the v2 `commands` map. |
 | Unknown or removed identifier | no capability key | Preserve artifact paths and append an `evidence_gaps` item with the source identifier, artifacts, reason, and next step; do not invent a promotion or silently drop deferred evidence. |
 
 ### Migration algorithm
@@ -141,7 +141,7 @@ For `full`, include every applicable high-autonomy capability with an honest sta
 2. Apply the mapping table in source order. When a split produces multiple capabilities, only the explicitly supported result inherits evidence; every new category without evidence is `partial` or `deferred`.
 3. Preserve every v1 capability artifact in the sorted `managed_artifacts` list, even when its old identifier is dropped.
 4. Rewrite deferred entries through the same mapping. A deferred `garbage_collection` entry produces deferred `workspace_cleanup` and `entropy_control` entries; a deferred `internal_tools` entry targets `repository_commands`; an unknown deferred identifier becomes an `evidence_gaps` item with its original reason and next step.
-5. Add empty `verify` arrays only where no observed mechanism exists. Run validation and fill them only with stable commands that exactly resolve through the v2 `commands` map or with a supported `inspect:` procedure.
+5. Re-resolve every inherited `verify` entry against the v2 `commands` map or supported `inspect:` vocabulary. Drop unresolved entries and downgrade an `implemented` capability to `partial`; add only stable entries that exactly resolve.
 6. Reopen the manifest and reject any obsolete capability key, unresolved verification command, malformed evidence, lost artifact, missing `evidence_gaps` record, or status promotion unsupported by fresh evidence.
 
 The migration is intentionally conservative: a v1 `implemented` claim can remain implemented only for the mapped outcome it actually proves. A v1 cache-only GC claim cannot make `entropy_control` implemented. A v1 `internal_tools` claim cannot make `repository_commands` implemented without fresh command evidence.

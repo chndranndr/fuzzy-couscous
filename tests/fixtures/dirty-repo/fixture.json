@@ -4,8 +4,12 @@
   "stacks": ["python"],
   "profile": "lite",
   "interactive_surface": false,
-  "user_owned": ["user-notes.txt"],
-  "untracked_user_owned": ["user-notes.txt"],
+  "user_owned": ["user-notes.txt", "build/user-owned.txt"],
+  "untracked_user_owned": ["user-notes.txt", "build/user-owned.txt"],
+  "generated_paths": {
+    "build/output.txt": "make build",
+    ".cache/cache.bin": "python -m cache_builder"
+  },
   "reconcile": {
     "manifest": ".harness/manifest.json",
     "documentation": "docs/architecture.md",

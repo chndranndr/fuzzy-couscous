@@ -2,7 +2,7 @@
   "name": "spring-service",
   "kind": "web-service",
   "stacks": ["java", "spring"],
-  "profile": "standard",
+  "profile": "lite",
   "interactive_surface": "api",
   "user_owned": [],
   "signals": {

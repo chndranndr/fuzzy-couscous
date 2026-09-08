@@ -121,15 +121,17 @@ def select_auto_profile(metadata: dict[str, Any]) -> dict[str, Any]:
         reasons.append("multiple runnable surfaces")
     if reasons:
         return {"profile": "full", "reasons": reasons}
-    if signals["existing_checks"] > 0:
-        reasons.append(f"{signals['existing_checks']} existing verification checks")
+    if signals["existing_checks"] > 1:
+        reasons.append("multiple existing verification checks")
     if signals["runnable_surfaces"] > 1:
         reasons.append("more than one runnable surface")
+    if signals.get("contributors", 1) > 1:
+        reasons.append("multiple contributors")
     if reasons:
         return {"profile": "standard", "reasons": reasons}
     return {
         "profile": "lite",
-        "reasons": ["small self-contained surface with no existing checks"],
+        "reasons": ["small self-contained surface with a focused check loop"],
     }
 
 
@@ -214,12 +216,24 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
     evidence_gaps = list(upgraded.get("evidence_gaps", []))
     managed = set(upgraded.get("managed_artifacts", []))
     legacy_artifacts: dict[str, list[str]] = {}
+    commands = upgraded.get("commands", {})
+    if not isinstance(commands, dict):
+        commands = {}
 
     def entry_copy(entry: dict[str, Any], *, verify: list[str] | None = None) -> dict[str, Any]:
+        raw_verify = entry.get("verify", []) if verify is None else verify
+        requested_verify = raw_verify if isinstance(raw_verify, list) else []
+        resolved_verify = [
+            value for value in requested_verify
+            if resolves_verify_entry(value, commands)
+        ]
+        status = entry.get("status", "partial")
+        if requested_verify and len(resolved_verify) != len(requested_verify) and status == "implemented":
+            status = "partial"
         return {
-            "status": entry.get("status", "partial"),
+            "status": status,
             "artifacts": sorted(set(entry.get("artifacts", []))),
-            "verify": list(entry.get("verify", [])) if verify is None else verify,
+            "verify": resolved_verify,
         }
 
     def add(name: str, entry: dict[str, Any], *, verify: list[str] | None = None) -> None:
@@ -276,8 +290,11 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
             if "repository_commands" not in capabilities:
                 add(
                     "repository_commands",
-                    {"status": "partial", "artifacts": artifacts},
-                    verify=[],
+                    {
+                        **entry,
+                        "status": "partial",
+                        "artifacts": artifacts,
+                    },
                 )
             defer(
                 "repository_commands",
@@ -399,16 +416,25 @@ def harden_fixture(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     manifest_path = root / config["manifest"]
     manifest = upgrade_manifest(json.loads(read_text(manifest_path)))
     guardrail_command = f"python {config['guardrail']}"
-    manifest.setdefault("commands", {})["check"] = guardrail_command
+    commands = manifest.setdefault("commands", {})
+    guardrail_slot = next(
+        (slot for slot in ("check", "test", "eval", "doctor") if not commands.get(slot)),
+        None,
+    )
+    guardrail_verify = guardrail_command
+    if guardrail_slot is not None:
+        commands[guardrail_slot] = guardrail_command
+    else:
+        guardrail_verify = "inspect: manifest matches observed artifacts"
     capability_name = {
         "architecture-boundary-gap": "architecture_boundaries",
         "verification-gap": "quality_checks",
         "domain-invariant-gap": "domain_invariants",
     }.get(failure["category"], "repository_commands")
     manifest.setdefault("capabilities", {})[capability_name] = {
-        "status": "implemented",
+        "status": "implemented" if guardrail_slot is not None else "partial",
         "artifacts": [config["guardrail"]],
-        "verify": [guardrail_command],
+        "verify": [guardrail_verify],
     }
     manifest["managed_artifacts"] = sorted(
         set(manifest.get("managed_artifacts", [])) | {config["guardrail"]}
@@ -423,7 +449,8 @@ def harden_fixture(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
         "guardrail": config["guardrail"],
         "failure": config["failure"],
         "manifest": config["manifest"],
-        "verify": guardrail_command,
+        "verify": guardrail_verify,
+        "verify_slot": guardrail_slot,
         "changed": changed or manifest_changed,
     }
 
@@ -529,12 +556,22 @@ def gc_categories(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     """Classify generated paths and explicitly evidenced entropy findings."""
 
     cleanup: list[str] = []
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(root).as_posix()
-        if relative.startswith(("build/", ".cache/", "coverage/")):
-            cleanup.append(relative)
+    cleanup_evidence: dict[str, str] = {}
+    generated_paths = metadata.get("generated_paths", {})
+    if isinstance(generated_paths, dict):
+        for relative, regeneration in generated_paths.items():
+            relative_path = Path(relative) if isinstance(relative, str) else None
+            if (
+                relative_path is None
+                or relative_path.is_absolute()
+                or ".." in relative_path.parts
+                or not isinstance(regeneration, str)
+                or not regeneration
+            ):
+                continue
+            if (root / relative_path).is_file():
+                cleanup.append(relative)
+                cleanup_evidence[relative] = regeneration
     entropy_evidence = {
         relative: reason
         for relative, reason in metadata.get("entropy_findings", {}).items()
@@ -542,6 +579,10 @@ def gc_categories(root: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     }
     return {
         "workspace_cleanup": sorted(cleanup),
+        "cleanup_evidence": {
+            relative: cleanup_evidence[relative]
+            for relative in sorted(cleanup_evidence)
+        },
         "entropy_control": sorted(entropy_evidence),
         "entropy_evidence": entropy_evidence,
     }
@@ -698,7 +739,13 @@ def test_auto_profile_selection() -> None:
         )
 
     _, empty_metadata = load_fixture("empty-node")
+    _, spring_metadata = load_fixture("spring-service")
     _, android_metadata = load_fixture("android-compose")
+    assert_equal(
+        select_auto_profile(spring_metadata)["profile"],
+        "lite",
+        "small one-check service was over-harnessed",
+    )
     assert_equal(select_auto_profile(android_metadata)["profile"], "full", "high-autonomy fixture missed full")
     override = resolve_profile("lite", android_metadata)
     assert_equal(override["profile"], "lite", "explicit profile did not override auto")
@@ -739,9 +786,17 @@ def test_harden_feedback_loop() -> None:
         )
         assert_equal(
             manifest["commands"]["check"],
+            "npm run check",
+            "hardening clobbered the existing check command",
+        )
+        assert_equal(result["verify_slot"], "test", "hardening did not use an available command slot")
+        assert_equal(
+            manifest["commands"][result["verify_slot"]],
             result["verify"],
             "hardening recorded a verify command that does not resolve",
         )
+        if not resolves_verify_entry(result["verify"], manifest["commands"]):
+            raise AssertionError("hardening emitted an unresolved verify entry")
         if config["guardrail"] not in manifest["managed_artifacts"]:
             raise AssertionError("hardening omitted its guardrail from managed artifacts")
         if run_guardrail(target, config["guardrail"]).returncode == 0:
@@ -815,16 +870,16 @@ def test_v1_migration_mapping() -> None:
     upgraded = upgrade_manifest(v1)
     expected_capabilities = {
         "architecture_boundaries": {
-            "status": "implemented",
+            "status": "partial",
             "artifacts": ["scripts/architecture-check"],
-            "verify": ["npm run architecture:check"],
+            "verify": [],
         },
         "domain_invariants": {"status": "partial", "artifacts": [], "verify": []},
         "entropy_control": {"status": "partial", "artifacts": [], "verify": []},
         "interactive_legibility": {
-            "status": "implemented",
+            "status": "partial",
             "artifacts": ["scripts/ui-check"],
-            "verify": ["npm run ui:check"],
+            "verify": [],
         },
         "repository_commands": {
             "status": "partial",
@@ -840,9 +895,13 @@ def test_v1_migration_mapping() -> None:
         "workspace_isolation": {
             "status": "partial",
             "artifacts": ["scripts/isolate"],
-            "verify": ["npm run isolate"],
+            "verify": [],
         },
     }
+    for name, capability in upgraded["capabilities"].items():
+        for verify in capability["verify"]:
+            if not resolves_verify_entry(verify, upgraded["commands"]):
+                raise AssertionError(f"migrated verify entry does not resolve: {name}/{verify}")
     assert_equal(upgraded["schema_version"], 2, "v1 migration did not set schema v2")
     assert_equal(upgraded["capabilities"], expected_capabilities, "v1 capability mapping drifted")
     assert_equal(
@@ -938,8 +997,21 @@ def test_gc_separates_categories() -> None:
     source, metadata = load_fixture("dirty-repo")
     before = snapshot(source)
     report = gc_dry_run(source, metadata)
-    if not report["workspace_cleanup"]:
-        raise AssertionError("gc fixture lacks generated cleanup evidence")
+    assert_equal(
+        report["workspace_cleanup"],
+        [".cache/cache.bin", "build/output.txt"],
+        "gc did not require explicit generated-path evidence",
+    )
+    assert_equal(
+        report["cleanup_evidence"],
+        {
+            ".cache/cache.bin": "python -m cache_builder",
+            "build/output.txt": "make build",
+        },
+        "gc lost regeneration evidence",
+    )
+    if "build/user-owned.txt" in report["deletion_candidates"]:
+        raise AssertionError("gc treated user-owned build work as generated output")
     if report["entropy_control"] != ["docs/architecture.md"]:
         raise AssertionError("gc did not use explicit entropy evidence")
     if report["entropy_evidence"].get("docs/architecture.md") != "stale project-shape assumption":

@@ -9,6 +9,7 @@
     "runnable_surfaces": 1,
     "existing_checks": 1,
     "agent_autonomy": "standard",
+    "contributors": 2,
     "concurrent_work": false
   }
 }

@@ -19,6 +19,7 @@
   },
   "managed_artifacts": [],
   "commands": {
+    "check": "npm run check",
     "gc": "npm run gc"
   },
   "deferred": [
