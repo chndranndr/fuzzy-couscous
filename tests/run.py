@@ -100,6 +100,17 @@ def load_fixture(name: str) -> tuple[Path, dict[str, Any]]:
     metadata = json.loads(read_text(path / "fixture.json"))
     return path, metadata
 
+COMMAND_SLOTS = ("setup", "dev", "format", "check", "test", "eval", "doctor", "gc")
+
+
+def normalize_commands(source: Any) -> dict[str, str | None]:
+    values = source if isinstance(source, dict) else {}
+    normalized: dict[str, str | None] = {}
+    for slot in COMMAND_SLOTS:
+        value = values.get(slot)
+        normalized[slot] = value if isinstance(value, str) and value else None
+    return normalized
+
 
 def snapshot(root: Path) -> dict[str, bytes]:
     return {
@@ -182,6 +193,7 @@ def manifest_projection(
                 "verify": ["inspect: findings have evidence and remediation"],
             },
         },
+        "commands": normalize_commands(metadata.get("commands")),
     }
 
 
@@ -216,9 +228,8 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
     evidence_gaps = list(upgraded.get("evidence_gaps", []))
     managed = set(upgraded.get("managed_artifacts", []))
     legacy_artifacts: dict[str, list[str]] = {}
-    commands = upgraded.get("commands", {})
-    if not isinstance(commands, dict):
-        commands = {}
+    commands = normalize_commands(upgraded.get("commands"))
+    upgraded["commands"] = commands
 
     def entry_copy(entry: dict[str, Any], *, verify: list[str] | None = None) -> dict[str, Any]:
         raw_verify = entry.get("verify", []) if verify is None else verify
@@ -707,6 +718,12 @@ def test_fixture_shapes() -> None:
     android_root, android_metadata = load_fixture("android-compose")
     if android_metadata["interactive_surface"] != "android" or not (android_root / "settings.gradle.kts").is_file():
         raise AssertionError("Android fixture lacks non-web adapter evidence")
+    spring_root, spring_metadata = load_fixture("spring-service")
+    if (
+        spring_metadata["profile"] != "lite"
+        or not (spring_root / "src/test/java/fixture/HealthTest.java").is_file()
+    ):
+        raise AssertionError("tiny service fixture lacks its concrete test evidence")
 
 
 def test_init_is_convergent() -> None:
@@ -904,6 +921,20 @@ def test_v1_migration_mapping() -> None:
                 raise AssertionError(f"migrated verify entry does not resolve: {name}/{verify}")
     assert_equal(upgraded["schema_version"], 2, "v1 migration did not set schema v2")
     assert_equal(upgraded["capabilities"], expected_capabilities, "v1 capability mapping drifted")
+    assert_equal(
+        upgraded["commands"],
+        {
+            "setup": "npm install",
+            "dev": None,
+            "format": None,
+            "check": "npm run check",
+            "test": "npm test",
+            "eval": None,
+            "doctor": None,
+            "gc": "npm run gc",
+        },
+        "v1 migration did not normalize stable command slots",
+    )
     assert_equal(
         upgraded["managed_artifacts"],
         [

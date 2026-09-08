@@ -137,7 +137,7 @@ For `full`, include every applicable high-autonomy capability with an honest sta
 
 ### Migration algorithm
 
-1. Copy the v1 top-level state and normalize `schema_version` to `2`.
+1. Copy the v1 top-level state, normalize `commands` to the stable `setup`, `dev`, `format`, `check`, `test`, `eval`, `doctor`, and `gc` slots, fill absent slots with `null`, and normalize `schema_version` to `2`.
 2. Apply the mapping table in source order. When a split produces multiple capabilities, only the explicitly supported result inherits evidence; every new category without evidence is `partial` or `deferred`.
 3. Preserve every v1 capability artifact in the sorted `managed_artifacts` list, even when its old identifier is dropped.
 4. Rewrite deferred entries through the same mapping. A deferred `garbage_collection` entry produces deferred `workspace_cleanup` and `entropy_control` entries; a deferred `internal_tools` entry targets `repository_commands`; an unknown deferred identifier becomes an `evidence_gaps` item with its original reason and next step.
