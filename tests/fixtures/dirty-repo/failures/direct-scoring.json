@@ -1,0 +1,6 @@
+{
+  "description": "A generated layer writes directly to deterministic scoring state.",
+  "deterministic": true,
+  "marker": "DIRECT_SCORING_WRITE",
+  "category": "architecture-boundary-gap"
+}

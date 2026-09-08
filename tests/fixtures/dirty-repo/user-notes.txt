@@ -1,0 +1,1 @@
+local work must survive harness operations

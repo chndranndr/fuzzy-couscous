@@ -1,0 +1,8 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>fixture</groupId>
+  <artifactId>spring-service</artifactId>
+  <properties>
+    <java.version>21</java.version>
+  </properties>
+</project>

@@ -1,0 +1,14 @@
+{
+  "name": "spring-service",
+  "kind": "web-service",
+  "stacks": ["java", "spring"],
+  "profile": "lite",
+  "interactive_surface": "api",
+  "user_owned": [],
+  "signals": {
+    "runnable_surfaces": 1,
+    "existing_checks": 1,
+    "agent_autonomy": "standard",
+    "concurrent_work": false
+  }
+}

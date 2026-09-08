@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "profile": "standard",
+  "project": {
+    "kind": "web-service",
+    "stacks": ["node"]
+  },
+  "capabilities": {
+    "garbage_collection": {
+      "status": "implemented",
+      "artifacts": ["scripts/gc"],
+      "verify": ["npm run gc"]
+    },
+    "legacy_reconcile": {
+      "status": "implemented",
+      "artifacts": ["scripts/legacy"],
+      "verify": ["npm run legacy"]
+    }
+  },
+  "managed_artifacts": [],
+  "commands": {
+    "check": "npm run check",
+    "gc": "npm run gc"
+  },
+  "deferred": [
+    {
+      "capability": "legacy_review",
+      "reason": "Legacy review capability needs classification.",
+      "next_step": "Inspect the legacy review process."
+    }
+  ]
+}
