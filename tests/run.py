@@ -1021,6 +1021,20 @@ def test_reconcile_converges() -> None:
             raise AssertionError("reconcile dropped mapped workspace cleanup evidence")
         if reconciled_manifest["commands"].get("gc") != "npm run gc":
             raise AssertionError("reconcile dropped the existing gc command")
+        assert_equal(
+            reconciled_manifest["commands"],
+            {
+                "setup": None,
+                "dev": None,
+                "format": None,
+                "check": "npm run check",
+                "test": None,
+                "eval": None,
+                "doctor": None,
+                "gc": "npm run gc",
+            },
+            "reconcile did not normalize all stable command slots",
+        )
         assert_equal(snapshot(source), source_before, "reconcile mutated the source fixture")
 
 
