@@ -1,0 +1,140 @@
+{
+  "schema_version": 2,
+  "profile": "standard",
+  "project": {
+    "kind": "library",
+    "stacks": ["markdown", "python"]
+  },
+  "capabilities": {
+    "agent_workflow": {
+      "status": "implemented",
+      "artifacts": [
+        "AGENTS.md",
+        "docs/index.md",
+        "skills/kuskus/SKILL.md",
+        "skills/kuskus/references/workflows.md"
+      ],
+      "verify": ["inspect: agent workflow is discoverable"]
+    },
+    "architecture_boundaries": {
+      "status": "partial",
+      "artifacts": [
+        "AGENTS.md",
+        "docs/index.md",
+        "skills/kuskus/SKILL.md",
+        "tests/run.py"
+      ],
+      "verify": ["python tests/run.py"]
+    },
+    "ci": {
+      "status": "partial",
+      "artifacts": [".github/workflows/self-eval.yml"],
+      "verify": ["python tests/run.py"]
+    },
+    "evaluation": {
+      "status": "partial",
+      "artifacts": ["tests/run.py"],
+      "verify": ["python tests/run.py"]
+    },
+    "execution_planning": {
+      "status": "not_applicable",
+      "artifacts": []
+    },
+    "interactive_legibility": {
+      "status": "not_applicable",
+      "artifacts": []
+    },
+    "knowledge_base": {
+      "status": "implemented",
+      "artifacts": [
+        "AGENTS.md",
+        "README.md",
+        "docs/index.md",
+        "skills/kuskus/references/acceptance.md",
+        "skills/kuskus/references/manifest.md",
+        "skills/kuskus/references/profiles.md",
+        "skills/kuskus/references/workflows.md"
+      ],
+      "verify": ["inspect: links resolve"]
+    },
+    "observability": {
+      "status": "not_applicable",
+      "artifacts": []
+    },
+    "quality_checks": {
+      "status": "implemented",
+      "artifacts": ["tests/run.py", ".github/workflows/self-eval.yml"],
+      "verify": ["python tests/run.py"]
+    },
+    "repository_commands": {
+      "status": "implemented",
+      "artifacts": ["AGENTS.md", "README.md", "tests/run.py"],
+      "verify": ["python tests/run.py"]
+    },
+    "review_loop": {
+      "status": "partial",
+      "artifacts": [
+        "README.md",
+        "docs/index.md",
+        "skills/kuskus/references/workflows.md"
+      ],
+      "verify": ["inspect: links resolve"]
+    },
+    "workspace_cleanup": {
+      "status": "deferred",
+      "artifacts": []
+    },
+    "workspace_isolation": {
+      "status": "not_applicable",
+      "artifacts": []
+    }
+  },
+  "managed_artifacts": [
+    ".github/workflows/self-eval.yml",
+    ".harness/manifest.json",
+    ".omp-plugin/marketplace.json",
+    "AGENTS.md",
+    "README.md",
+    "docs/index.md",
+    "skills/kuskus/SKILL.md",
+    "skills/kuskus/agents/openai.yaml",
+    "skills/kuskus/references/acceptance.md",
+    "skills/kuskus/references/manifest.md",
+    "skills/kuskus/references/profiles.md",
+    "skills/kuskus/references/workflows.md",
+    "tests/run.py"
+  ],
+  "commands": {
+    "setup": null,
+    "dev": null,
+    "format": "git diff --check",
+    "check": "python tests/run.py",
+    "test": "python tests/run.py",
+    "eval": "python tests/run.py --e2e",
+    "doctor": null,
+    "gc": null
+  },
+  "deferred": [
+    {
+      "capability": "ci",
+      "reason": "The workflow is present, but this initialization has no local CI runner or current run evidence.",
+      "next_step": "Verify the workflow on the next pushed change or CI run."
+    },
+    {
+      "capability": "evaluation",
+      "reason": "No credentialed adapter is configured for prompt-level E2E.",
+      "next_step": "Set KUSKUS_E2E_COMMAND and rerun python tests/run.py --e2e."
+    },
+    {
+      "capability": "review_loop",
+      "reason": "The package documents a proportionate review loop, but no repository-local review record or executable review guardrail is persisted.",
+      "next_step": "Record a proportionate review loop for the next non-trivial package change."
+    },
+    {
+      "capability": "workspace_cleanup",
+      "reason": "This file-backed package has no generated workspace or cleanup command.",
+      "next_step": "Add a deterministic cleanup surface only when generated repository artifacts appear."
+    }
+  ],
+  "evidence_gaps": []
+}

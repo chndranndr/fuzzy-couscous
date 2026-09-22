@@ -1,6 +1,6 @@
 ---
 name: kuskus
-description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local workflows for coding agents. Use when a user invokes $kuskus in Codex or /skill:kuskus in Pi/OMP, or asks to make a project agent-legible with repository knowledge, tests, CI, observability, evals, review loops, or maintenance tooling. Do not use for ordinary feature work that does not change the repository's Kuskus setup.
+description: Initialize, inspect, upgrade, reconcile, harden, and clean repository-local workflows for coding agents. Use when a user invokes $kuskus in Codex or /skill:kuskus in Pi/OMP, asks to initialize or maintain a repository harness, or explicitly asks to revise its operating contract. After initialization, ordinary repository work follows the generated AGENTS.md contract; do not rerun setup commands merely because a feature task is in progress.
 metadata:
   short-description: Build an adaptive agent-ready coding workflow
 ---
@@ -8,6 +8,24 @@ metadata:
 # Kuskus
 
 Make the repository easy for coding agents to understand, run, verify, review, and maintain. Adapt the existing project instead of imposing a universal template. Follow the repository-as-system-of-record principles in [OpenAI's Harness Engineering guide](https://openai.com/index/harness-engineering/).
+
+## Operating contract
+
+Kuskus has two modes:
+
+- **Setup and maintenance:** `$kuskus init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc` create or maintain the repository workflow.
+- **Repository work:** after initialization, the generated `AGENTS.md` operating contract applies to every feature, bug fix, refactor, documentation, and configuration task. Do not invoke setup commands for ordinary work unless the workflow itself is stale or broken.
+
+The target `AGENTS.md` bootstraps the full contract in [Repository-local work after initialization](references/workflows.md#repository-local-work-after-initialization). At every task start, the agent must:
+
+- inspect existing code, callers, commands, tests, requirements, and user-owned changes;
+- state the actual problem, observable acceptance criteria, non-goals, and smallest safe scope;
+- use strict TDD (`red -> green -> refactor`) only for applicable behavior code, and proportionate verification for other surfaces;
+- test behavior, boundaries, failure modes, and explicit invariants—not incidental implementation details;
+- run verification, review the result, and report concrete pass, fail, skipped, or blocked evidence;
+- remove only evidenced, in-scope slop with the smallest safe diff.
+
+`init` bootstraps this concise contract and its command/evidence links; it does not need to be invoked for ordinary work.
 
 ## Commands
 

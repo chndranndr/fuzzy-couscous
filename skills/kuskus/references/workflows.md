@@ -15,6 +15,19 @@
 
 Ask only when a conflict changes a material product or infrastructure choice.
 
+## Repository-local work after initialization
+
+The contract below applies to ordinary feature, bug-fix, refactor, documentation, and configuration work in an initialized target. It is bootstrapped into that target's `AGENTS.md`; it does not re-invoke `init` or another Kuskus setup command for every task.
+
+1. Read the target `AGENTS.md`, `docs/index.md`, `.harness/manifest.json`, and relevant source-of-truth docs.
+2. Inspect current behavior, callers, commands, tests, requirements, and user-owned changes.
+3. Record the problem, observable acceptance criteria, non-goals, and smallest safe scope. Challenge unsupported assumptions before implementation.
+4. For applicable behavior code, follow strict TDD (`red -> green -> refactor`): a behavior test must fail before the implementation, then pass after the smallest change, followed by refactoring where useful. A reproduction or smoke scenario alone is verification, not proof of strict TDD.
+5. Test behavior, boundaries, failure modes, and explicit invariants. Use the project's proportionate scenario, smoke, structural, or evaluation path for UI, integration, configuration, infrastructure, and other non-unit-test surfaces.
+6. Run verification, review the diff and result, and report pass, fail, skipped, or blocked evidence.
+7. Remove only evidenced in-scope slop with the smallest safe diff. Heuristic unused-code detection alone never authorizes deleting tracked product code.
+8. Send deterministic recurring failures through `harden` so they become executable guardrails where possible.
+
 ## Init
 
 Resolve the profile, defaulting to `auto`, and read the matching outcomes in [profiles.md](profiles.md).
@@ -39,9 +52,8 @@ For an existing repository:
 - Preserve dirty and untracked user work. Do not stage it.
 - Select project-shape adapters from existing tools; do not add browser, emulator, telemetry, or container dependencies merely to fill a profile.
 
-For `AGENTS.md`, retain valid constraints and import directives. If it has become a manual, move detailed guidance into indexed docs and leave links, but do not silently discard rules whose validity is uncertain.
-
-Install the selected profile, run the smallest checks that prove each changed capability, and write or update the v2 manifest from observed results. Re-running `init` must converge: no duplicate sections, scripts, workflows, dependencies, or verification entries.
+- For `AGENTS.md`, retain valid constraints and import directives. Bootstrap the concise repository-local operating contract and its links, but do not silently discard rules whose validity is uncertain.
+- Install the selected profile, including the baseline operating contract, run the smallest checks that prove each changed capability, and write or update the v2 manifest from observed results. Do not mark `agent_workflow` implemented until its bootstrap content, links, command map, verification evidence, and a recorded check/test/eval command pass inspection when available. Re-running `init` must converge: no duplicate sections, scripts, workflows, dependencies, or verification entries.
 
 ## Status
 

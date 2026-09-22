@@ -24,14 +24,15 @@ Report the selected profile and the evidence behind it before writes. Do not sil
 
 ## Lite
 
-Establish the shortest reliable agent development loop:
+- Establish the shortest reliable agent development loop, including a discoverable operating contract for every task:
 
 - For an empty repository, create a minimal runnable application scaffold in the resolved stack: one entry point, one startup or health check, and one test. Do not implement product features.
-- Keep `AGENTS.md` concise and use it as a map to repository-local source-of-truth documentation. Preserve valid existing instructions and imported instruction directives.
+- Keep `AGENTS.md` concise as both a map and the mandatory bootstrap for the repository-local operating contract. It applies to every ordinary feature, bug-fix, refactor, documentation, and configuration task; preserve valid existing instructions and imported instruction directives.
 - Document the product intent, current architecture, development commands, and verification path. Reuse an existing documentation layout.
 - Provide one native command surface for setup, development, formatting, checks, and tests. Extend package scripts, Make, or the existing task runner; add no new task-runner dependency.
 - Configure the smallest useful formatter, linter or static check, and test baseline supported by the stack.
 - Configure the known CI provider to run the baseline checks. If no provider can be established, record CI as deferred instead of guessing.
+- Record this baseline as the `agent_workflow` capability with stable artifacts and verification evidence; file presence alone is not proof.
 - Write `.harness/manifest.json` after the artifacts and commands are verified.
 
 ## Standard

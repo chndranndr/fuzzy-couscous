@@ -22,6 +22,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
+BOOTSTRAP_FIXTURE = FIXTURES / "initialized-empty-node"
 REQUIRED_FIXTURES = {
     "empty-node",
     "existing-ts-web",
@@ -32,6 +33,7 @@ REQUIRED_FIXTURES = {
 }
 REQUIRED_CAPABILITIES = {
     "application_scaffold",
+    "agent_workflow",
     "knowledge_base",
     "repository_commands",
     "quality_checks",
@@ -53,12 +55,79 @@ INSPECTION_PROCEDURES = frozenset(
     {
         "inspect: project has no interactive surface",
         "inspect: adapter exposes the critical surface",
+        "inspect: agent workflow is discoverable",
         "inspect: generated paths have regeneration evidence",
         "inspect: findings have evidence and remediation",
         "inspect: links resolve",
         "inspect: manifest matches observed artifacts",
     }
 )
+
+WORKFLOW_MARKERS = (
+    "For every task",
+    "observable acceptance criteria",
+    "non-goals",
+    "red -> green -> refactor",
+    "proportionate verification",
+    "behavior",
+    "pass, fail, skipped, or blocked evidence",
+    "smallest safe diff",
+)
+
+OPERATING_CONTRACT_MARKERS = WORKFLOW_MARKERS + (
+    "AGENTS.md",
+    "docs/index.md",
+    ".harness/manifest.json",
+)
+
+
+def assert_operating_contract(content: str, label: str) -> None:
+    for marker in OPERATING_CONTRACT_MARKERS:
+        if marker not in content:
+            raise AssertionError(f"{label} operating contract omits {marker!r}")
+
+
+def assert_workflow_content(content: str, label: str) -> None:
+    for marker in WORKFLOW_MARKERS:
+        if marker not in content:
+            raise AssertionError(f"{label} workflow omits {marker!r}")
+
+
+def assert_local_links_resolve(source: Path) -> None:
+    for link in re.findall(r"\]\(([^)]+)\)", read_text(source)):
+        if link.startswith(("http://", "https://", "mailto:")):
+            continue
+        target = link.split("#", 1)[0]
+        if target and not (source.parent / target).exists():
+            raise AssertionError(f"{source} contains an unresolved link: {link}")
+
+
+def assert_bootstrap_links(content: str, label: str) -> None:
+    for link in ("docs/index.md#task-workflow", ".harness/manifest.json"):
+        if f"]({link})" not in content:
+            raise AssertionError(f"{label} bootstrap omits the required link: {link}")
+
+
+def assert_agent_workflow_manifest(manifest: dict[str, Any], label: str) -> None:
+    capabilities = manifest.get("capabilities")
+    if not isinstance(capabilities, dict):
+        raise AssertionError(f"{label} manifest lacks capabilities")
+    capability = capabilities.get("agent_workflow")
+    if not isinstance(capability, dict):
+        raise AssertionError(f"{label} manifest lacks agent_workflow")
+    if capability.get("status") != "implemented":
+        raise AssertionError(f"{label} agent_workflow lacks an inspected implementation status")
+    artifacts = capability.get("artifacts")
+    if not isinstance(artifacts, list) or not {"AGENTS.md", "docs/index.md"} <= set(artifacts):
+        raise AssertionError(f"{label} agent_workflow lacks bootstrap artifacts")
+    commands = manifest.get("commands")
+    if not isinstance(commands, dict) or not any(commands.get(slot) for slot in ("check", "test", "eval")):
+        raise AssertionError(f"{label} agent_workflow lacks a stable check, test, or eval command")
+    verify = capability.get("verify")
+    if verify != ["inspect: agent workflow is discoverable"]:
+        raise AssertionError(f"{label} agent_workflow lacks discoverability evidence")
+    if not all(resolves_verify_entry(entry, commands) for entry in verify):
+        raise AssertionError(f"{label} agent_workflow has unresolved evidence")
 VERIFY_TOKEN_RE = re.compile(r"[A-Za-z0-9_./:@%+=,-]+(?: [A-Za-z0-9_./:@%+=,-]+)*\Z")
 FORBIDDEN_VERIFY_WORDS = re.compile(
     r"(?:timestamp|sha(?:1|224|256|384|512)?|md5|secret|token|password|transient)",
@@ -169,6 +238,11 @@ def manifest_projection(
             "stacks": sorted(metadata["stacks"]),
         },
         "capabilities": {
+            "agent_workflow": {
+                "status": "partial",
+                "artifacts": [],
+                "verify": [],
+            },
             "interactive_legibility": {
                 "status": (
                     "not_applicable"
@@ -203,6 +277,7 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
     upgraded = json.loads(json.dumps(v1))
     v2_capabilities = {
         "application_scaffold",
+        "agent_workflow",
         "knowledge_base",
         "repository_commands",
         "quality_checks",
@@ -320,6 +395,7 @@ def upgrade_manifest(v1: dict[str, Any]) -> dict[str, Any]:
                 "v1 capability has no v2 mapping; re-observe before classification.",
                 f"Inspect {old_name} and rerun $kuskus reconcile.",
             )
+
 
     mapped_deferred: list[dict[str, Any]] = []
     deferred_names = {
@@ -626,13 +702,20 @@ def test_command_surface() -> None:
         "reconcile [path]",
         "harden <failure-description|issue|log-path>",
         "Adaptive execution delegation",
+        "## Operating contract",
+        "ordinary repository work follows the generated AGENTS.md contract",
     )
     for token in required:
         if token not in skill:
             raise AssertionError(f"missing command contract: {token}")
     if "spawn exactly one" in skill or "one GPT-5.6 Luna worker" in read_text(ROOT / "README.md"):
         raise AssertionError("worker count remains a correctness invariant")
-    for token in ("## Reconcile", "## Harden", "## Planning and review loop"):
+    for token in (
+        "## Reconcile",
+        "## Harden",
+        "## Planning and review loop",
+        "## Repository-local work after initialization",
+    ):
         if token not in workflows:
             raise AssertionError(f"missing workflow: {token}")
 
@@ -653,6 +736,14 @@ def test_kuskus_rebrand() -> None:
     actual_commands = {example.split()[1] for example in command_examples}
     if actual_commands != expected_commands:
         raise AssertionError("Kuskus skill command examples are incomplete")
+    for token in (
+        "After initialization, ordinary repository work follows the generated AGENTS.md contract",
+        "do not rerun setup commands merely because a feature task is in progress",
+    ):
+        if token not in skill:
+            raise AssertionError(f"skill boundary is missing: {token}")
+    if "Do not use for ordinary feature work" in frontmatter.group(1):
+        raise AssertionError("skill still excludes ordinary feature work from the repository contract")
 
     readme = read_text(ROOT / "README.md")
     for token in (
@@ -779,10 +870,78 @@ def test_manifest_contract() -> None:
     for obsolete in ("garbage_collection", "worktree_isolation", "ui_legibility", "internal_tools"):
         if obsolete in taxonomy_match.group(1):
             raise AssertionError(f"obsolete capability remains in v2 taxonomy: {obsolete}")
+def test_initialized_manifest_contract() -> None:
+    manifest_path = ROOT / ".harness" / "manifest.json"
+    manifest = json.loads(read_text(manifest_path))
+    assert_equal(manifest.get("schema_version"), 2, "initialized manifest is not schema v2")
+    assert_equal(manifest.get("profile"), "standard", "initialized manifest lost the requested profile")
+
+    managed_artifacts = manifest.get("managed_artifacts")
+    if not isinstance(managed_artifacts, list):
+        raise AssertionError("initialized manifest lacks managed artifacts")
+    for artifact in (".harness/manifest.json", "AGENTS.md", "docs/index.md"):
+        if artifact not in managed_artifacts:
+            raise AssertionError(f"initialized manifest omits {artifact}")
+    for artifact in managed_artifacts:
+        if not isinstance(artifact, str) or not (ROOT / artifact).is_file():
+            raise AssertionError(f"initialized manifest points at a missing artifact: {artifact!r}")
+
+    commands = manifest.get("commands")
+    capabilities = manifest.get("capabilities")
+    if not isinstance(commands, dict) or not isinstance(capabilities, dict):
+        raise AssertionError("initialized manifest lacks commands or capabilities")
+    assert_agent_workflow_manifest(manifest, "initialized package")
+    for name, capability in capabilities.items():
+        if not isinstance(capability, dict):
+            raise AssertionError(f"initialized capability is not an object: {name}")
+        for entry in capability.get("verify", []):
+            if not resolves_verify_entry(entry, commands):
+                raise AssertionError(f"initialized manifest contains unresolved verify entry: {entry!r}")
+
+    deferred = manifest.get("deferred", [])
+    if not isinstance(deferred, list):
+        raise AssertionError("initialized manifest deferred field is not a list")
+    for item in deferred:
+        if set(item) != {"capability", "reason", "next_step"}:
+            raise AssertionError("initialized deferred item has the wrong shape")
+        capability = capabilities.get(item["capability"])
+        if not isinstance(capability, dict) or capability.get("status") not in {"partial", "deferred"}:
+            raise AssertionError(f"deferred item has an unsupported capability status: {item['capability']}")
+
+    if capabilities.get("review_loop", {}).get("status") == "implemented":
+        if capabilities["review_loop"].get("verify") == ["inspect: links resolve"]:
+            raise AssertionError("link resolution alone does not prove an implemented review loop")
+    for name in ("architecture_boundaries", "ci"):
+        if capabilities.get(name, {}).get("status") == "implemented":
+            if capabilities[name].get("verify") == ["python tests/run.py"]:
+                raise AssertionError(f"static checks alone do not prove implemented {name}")
+
+    agents = read_text(ROOT / "AGENTS.md")
+    if "[docs/index.md]" not in agents:
+        raise AssertionError("AGENTS.md does not link to the repository guide")
+    if "Authoritative Decision Log" in agents or "## Key Architectural Decisions" in agents:
+        raise AssertionError("AGENTS.md duplicated a detailed decision log")
+    assert_operating_contract(agents, "package AGENTS.md")
+    assert_local_links_resolve(ROOT / "AGENTS.md")
+    for token in (
+        "## Operating contract",
+        "For every task in this repository:",
+        "red -> green -> refactor",
+    ):
+        if token not in agents:
+            raise AssertionError(f"AGENTS.md operating contract is missing: {token}")
+    for path in (ROOT / "AGENTS.md", ROOT / "docs" / "index.md", ROOT / "README.md"):
+        for link in re.findall(r"\]\(([^)#]+)", read_text(path)):
+            if link.startswith(("http://", "https://", "mailto:")):
+                continue
+            if not (path.parent / link).exists():
+                raise AssertionError(f"documentation link does not resolve: {path}:{link}")
+
+
 
 
 def test_fixture_shapes() -> None:
-    actual = {path.name for path in FIXTURES.iterdir() if path.is_dir()}
+    actual = {path.name for path in FIXTURES.iterdir() if path.is_dir() and path != BOOTSTRAP_FIXTURE}
     assert_equal(actual, REQUIRED_FIXTURES, "fixture set does not match the required project shapes")
     for name in sorted(REQUIRED_FIXTURES):
         root, metadata = load_fixture(name)
@@ -803,6 +962,42 @@ def test_fixture_shapes() -> None:
         or not (spring_root / "src/test/java/fixture/HealthTest.java").is_file()
     ):
         raise AssertionError("tiny service fixture lacks its concrete test evidence")
+
+
+def test_agent_workflow_bootstrap() -> None:
+    root = BOOTSTRAP_FIXTURE
+    agents_path = root / "AGENTS.md"
+    manifest_path = root / ".harness" / "manifest.json"
+    agents = read_text(agents_path)
+    assert_operating_contract(agents, "initialized-empty-node AGENTS.md")
+    assert_bootstrap_links(agents, "initialized-empty-node AGENTS.md")
+    docs_path = root / "docs" / "index.md"
+    docs = read_text(docs_path)
+    assert_workflow_content(docs, "initialized-empty-node docs/index.md")
+    if "## Task workflow" not in docs:
+        raise AssertionError("initialized-empty-node guide lacks the canonical task workflow section")
+    if not (root / "docs" / "index.md").is_file():
+        raise AssertionError("initialized-empty-node bootstrap is missing its repository guide")
+    assert_local_links_resolve(agents_path)
+    assert_local_links_resolve(root / "docs" / "index.md")
+    manifest = json.loads(read_text(manifest_path))
+    assert_agent_workflow_manifest(manifest, "initialized-empty-node")
+    check_command = next(
+        manifest["commands"][slot]
+        for slot in ("check", "test", "eval")
+        if manifest["commands"].get(slot)
+    )
+    result = subprocess.run(
+        shlex.split(check_command),
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AssertionError(f"initialized-empty-node recorded check failed: {result.stderr}")
+    if not (root / "docs" / "index.md").is_file():
+        raise AssertionError("initialized-empty-node bootstrap is missing its repository guide")
 
 
 def test_init_is_convergent() -> None:
@@ -1152,7 +1347,9 @@ def test_documentation_agrees() -> None:
     docs = "\n".join(
         read_text(path)
         for path in (
+            ROOT / "AGENTS.md",
             ROOT / "README.md",
+            ROOT / "docs" / "index.md",
             ROOT / "skills" / "kuskus" / "SKILL.md",
             ROOT / "skills" / "kuskus" / "references" / "acceptance.md",
             ROOT / "skills" / "kuskus" / "references" / "manifest.md",
@@ -1160,7 +1357,7 @@ def test_documentation_agrees() -> None:
             ROOT / "skills" / "kuskus" / "references" / "workflows.md",
         )
     )
-    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$kuskus harden", "gc --dry-run", "static/reference", "KUSKUS_E2E_COMMAND"):
+    for token in ("workspace_cleanup", "entropy_control", "execution_planning", "review_loop", "init auto", "$kuskus harden", "gc --dry-run", "static/reference", "KUSKUS_E2E_COMMAND", "Kuskus Repository Guide", "Source of truth"):
         if token not in docs:
             raise AssertionError(f"documentation does not agree on {token}")
 
@@ -1171,7 +1368,9 @@ def main() -> int:
         test_kuskus_rebrand,
         test_marketplace_package,
         test_manifest_contract,
+        test_initialized_manifest_contract,
         test_fixture_shapes,
+        test_agent_workflow_bootstrap,
         test_init_is_convergent,
         test_auto_profile_selection,
         test_harden_feedback_loop,

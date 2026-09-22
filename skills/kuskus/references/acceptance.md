@@ -8,6 +8,18 @@ The default `python tests/run.py` suite is static/reference coverage for this pr
 
 For behavioral proof, configure `KUSKUS_E2E_COMMAND` and run `python tests/run.py --e2e`. The adapter receives an operation and copied fixture path for `init`, `status`, `doctor`, `upgrade`, `reconcile`, `harden`, and `gc-dry-run`; the E2E layer asserts convergence and read-only postconditions where generic checks are possible. An explicit `--e2e` run exits nonzero when no adapter is configured. CI runs the static layer; E2E remains an explicit local/credentialed evaluation.
 
+## Repository-local operating contract
+
+Every profile must bootstrap a concise operating contract into `AGENTS.md`. Acceptance requires that:
+
+- it applies to all ordinary engineering tasks after initialization;
+- it points to `docs/index.md`, `.harness/manifest.json`, the canonical workflow, and stable verification commands;
+- its content names observable acceptance criteria, premise and scope checks, strict TDD (`red -> green -> refactor`) only for applicable behavior code, and proportionate verification for other surfaces;
+- it requires behavior-focused assertions, concrete evidence, and smallest-safe-diff cleanup;
+- `agent_workflow` is not marked implemented from file presence alone: inspect the bootstrap content, linked paths, command map, and `verify` evidence;
+- prompt-level adherence is a separate evaluation. Static checks do not prove that an arbitrary runtime loaded or followed the contract.
+
+
 The suite must cover:
 
 - `init` producing a usable v2 manifest projection and converging on a second run;
@@ -27,8 +39,7 @@ Fixtures are minimal and purpose-built. They are not copied production repositor
 ## Init and upgrade acceptance
 
 - Existing user content and stack choices remain intact.
-- `AGENTS.md` is a concise map whose links resolve.
-- The manifest is valid v2 JSON and records every stable command slot, matching observed files and documented commands.
+- `AGENTS.md` is a concise map and bootstraps the repository-local operating contract for every ordinary engineering task; its links resolve.
 - Implemented capabilities have stable verification evidence where a future agent can run or inspect it; missing evidence is reported as an evidence gap.
 - Verification entries match the manifest grammar and closed `inspect:` vocabulary; malformed, unresolved, absolute, shell-bearing, transient, or machine-specific entries are rejected.
 - The repository has one discoverable command surface rather than competing task runners.

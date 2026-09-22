@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "id": "t1-blank-cells",
+      "overlay": "t1",
+      "hidden": "t1",
+      "prompt": "This data pipeline silently produces wrong aggregations: blank CSV cells in the score column are treated as 0 instead of missing data. tests/test_blank_cells.py reproduces the failure. Fix the pipeline so blank cells are treated as missing. Every test in the suite must pass when you finish. Do not add third-party dependencies. When finished, reply with a single final line: DONE."
+    },
+    {
+      "id": "t2-top-n",
+      "overlay": null,
+      "hidden": "t2",
+      "prompt": "Add a top-N feature to this data pipeline. Implement pipeline.aggregate.top_n(values, n): it returns the n largest values in descending order, all values when n exceeds the count, and an empty list when n <= 0. Wire a --top N flag into pipeline.cli: after the existing mean line, print one line per value formatted exactly as top_<i><TAB><value with 4 decimals>, with i starting at 1; print no top lines when N <= 0. All existing tests must stay green. Do not add third-party dependencies. When finished, reply with a single final line: DONE."
+    },
+    {
+      "id": "t3-clip-refactor",
+      "overlay": null,
+      "hidden": "t3",
+      "prompt": "Refactor pipeline.transform: extract the clipping logic out of normalize_range into a standalone clip(values, lo, hi) function in the same module. normalize_range must keep exactly its current behavior for every input. All existing tests must stay green. Do not add third-party dependencies. When finished, reply with a single final line: DONE."
+    },
+    {
+      "id": "t4-weighted-mean",
+      "overlay": "t4",
+      "hidden": "t4",
+      "prompt": "Reported crash: pipeline.stats.weighted_mean raises ZeroDivisionError on some inputs; tests/test_stats.py reproduces one such case. Make weighted_mean correct for every input its docstring promises. Do not add third-party dependencies. When finished, reply with a single final line: DONE."
+    }
+  ]
+}
