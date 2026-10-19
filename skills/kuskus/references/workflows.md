@@ -15,6 +15,42 @@
 
 Ask only when a conflict changes a material product or infrastructure choice.
 
+## Repository-local work after initialization
+
+For every task, the contract below applies to ordinary feature, bug-fix, refactor, documentation, and configuration work in an initialized target. It is bootstrapped into that target's `AGENTS.md`; it does not re-invoke `init` or another Kuskus setup command for every task.
+
+1. Read the target `AGENTS.md`, `docs/index.md`, `.harness/manifest.json`, and relevant source-of-truth docs.
+2. Inspect current behavior, callers, commands, tests, requirements, and user-owned changes.
+3. Record the problem, observable acceptance criteria, non-goals, and smallest safe scope. Challenge unsupported assumptions before implementation.
+4. Identify the changed observable contract and the callers or boundaries it affects.
+5. Reuse the cheapest existing check that can falsify that contract. A cheap but irrelevant check is not evidence, an existing passing test that never reaches the defect is not a reproduction, and required CI checks are not weakened to make reuse cheaper.
+6. For applicable behavior code, follow strict TDD (`red -> green -> refactor`): an existing failing behavior test satisfies the red step, and a new test file is not mandatory. Add or extend a test only for an uncovered behavior, boundary, failure mode, or invariant, and derive its expected result from the requirement, never from the implementation under test.
+7. Use the closest appropriate executable scenario for UI, integration, configuration, infrastructure, and other non-unit-test surfaces, and apply proportionate verification there. Report a smoke or reproduction as such, not as strict TDD.
+8. Broaden verification to affected integration boundaries and plausible regressions, and stop adding checks once the acceptance criteria and those risks are covered. Report unexercised surfaces explicitly.
+9. Review the diff and result, and report pass, fail, skipped, or blocked evidence.
+10. Remove only evidenced in-scope slop with the smallest safe diff. Heuristic unused-code detection alone never authorizes deleting tracked product code.
+11. Send deterministic recurring failures through `harden` so they become executable guardrails where possible.
+
+## Verification decisions
+
+These rules apply to repository-local work and to `harden`. Choose the smallest check that can falsify the changed contract, and describe evidence by what it actually exercised.
+
+- A newly introduced deterministic guardrail that supports a correctness claim must reject a relevant known-broken case and accept the correct case when that is safe to exercise in isolation. Reuse the original defect as the negative control. When the control cannot be exercised, state the limitation instead of claiming the check is validated.
+- A runner's success validates only its assertions and the path it exercised. Do not infer correctness of its oracle, other platforms, or the rest of the system.
+- Tests must fail when the promised behavior breaks and survive internal-only restructuring. External effects and payloads are behavior when an actual consumer observes them; do not ban all mocks or call assertions categorically.
+- When two fixes that share one premise fail the same gate, write down the premise and test an observation that distinguishes it from an alternative before attempting another fix. This is a diagnostic escalation trigger, not permission to disregard user-reported evidence or to run two speculative fixes deliberately.
+- Parse external data at its actual trust boundaries with the existing parsers, schema, or types. Skip redundant revalidation only where the invariant is established and preserved; do not extend that trust to mutable internal state.
+- Do not add a mandatory independent agent, mutation framework, or universal verification template. For a consequential claim whose assumptions remain uncertain, use a bounded independent review of the property, the oracle, and the mapping to the implementation.
+
+Conditional procedures — activate only when the stated condition holds:
+
+- Script or codemod: reuse existing commands first; create the smallest rerunnable tool only for bulk deterministic transformations or work that needs repeatable proof. A nontrivial one-off does not automatically require a new committed script.
+- Multi-step migration or sweep: verify coherent units with the cheapest relevant check before dependent work, then run integration checks on the combined result. Do not require a rebase, commit, PR, or full suite per individual edit.
+- Novel design: compare 2–3 prototypes only when a UI or architecture decision lacks a repository precedent and cannot be settled through existing constraints or cheap experiments. Set the comparison criteria from the acceptance criteria before building, select one, and stop. Existing architecture remains the default for ordinary changes.
+- Data or types: inspect access patterns and shared-state invariants before structural decisions, and reuse the authoritative schema and language-native checking. No universal branded-type requirement, scaffold-first campaign, or unrelated deletion.
+- Formal verification: only for a named high-impact invariant that tests cover poorly and that has a usable verification tool. State the property, the harm it prevents, the code mapping, assumptions and bounds, the negative control, and the rerun command. Prefer existing toolchains. With no applicable verifier, exercise generated inputs against real code and label that testing, not formal proof. Never weaken a property to hide a current finding or change product code outside the task.
+- App verification map: create or maintain one only when the target has a real interactive, service, or CLI surface and an observed launch/drive/evidence gap. Reuse profile adapters and existing scripts; this file-backed package needs no map. Full-map audits are explicit maintenance, not per-task work. Preserve evidence during teardown and stop only the processes and resources the run created.
+
 ## Init
 
 Resolve the profile, defaulting to `auto`, and read the matching outcomes in [profiles.md](profiles.md).
@@ -39,9 +75,8 @@ For an existing repository:
 - Preserve dirty and untracked user work. Do not stage it.
 - Select project-shape adapters from existing tools; do not add browser, emulator, telemetry, or container dependencies merely to fill a profile.
 
-For `AGENTS.md`, retain valid constraints and import directives. If it has become a manual, move detailed guidance into indexed docs and leave links, but do not silently discard rules whose validity is uncertain.
-
-Install the selected profile, run the smallest checks that prove each changed capability, and write or update the v2 manifest from observed results. Re-running `init` must converge: no duplicate sections, scripts, workflows, dependencies, or verification entries.
+- For `AGENTS.md`, retain valid constraints and import directives. Bootstrap the concise repository-local operating contract and its links, but do not silently discard rules whose validity is uncertain.
+- Install the selected profile, including the baseline operating contract, run the smallest checks that prove each changed capability, and write or update the v2 manifest from observed results. Do not mark `agent_workflow` implemented until its bootstrap content, links, command map, verification evidence, and a recorded check/test/eval command pass inspection when available. Re-running `init` must converge: no duplicate sections, scripts, workflows, dependencies, or verification entries.
 
 ## Status
 
@@ -106,9 +141,9 @@ Use `harden <failure-description|issue|log-path>` to close the feedback loop:
    - observability gap;
    - agent-legibility/tooling gap;
    - review gap.
-4. Choose the smallest durable remediation. Prefer a deterministic test, validator, lint, architecture check, or evaluation for deterministic recurring failures. Use a concise instruction or knowledge update for contextual rules that cannot be checked safely.
+4. Choose the smallest durable remediation, extending an existing guardrail for the same failure class before adding a parallel check or instruction. Keep separate cases for distinct boundary risks rather than capping the number of checks. Prefer a deterministic test, validator, lint, architecture check, or evaluation for deterministic recurring failures. Use a concise instruction or knowledge update for contextual rules that cannot be checked safely.
 5. Preserve existing user-owned rules and conventions. Merge rather than replace; never turn the failure into a generic manual without checking for executable enforcement first.
-6. Run the new guardrail against the original failure class, add regression/evaluation evidence where practical, and update the matching manifest capability and stable `verify` entries.
+6. Run the new guardrail against the original failure class and the correct case where safe, add regression/evaluation evidence where practical, and update the matching manifest capability and stable `verify` entries. When the control cannot be exercised, report that limitation instead of calling the guardrail validated.
 
 The result names the classification, changed guardrail, original failure evidence, verification outcome, preserved rules, and any remaining uncertainty.
 

@@ -15,6 +15,11 @@ Use schema version `2`:
     "stacks": ["node", "typescript"]
   },
   "capabilities": {
+    "agent_workflow": {
+      "status": "implemented",
+      "artifacts": ["AGENTS.md", "docs/index.md"],
+      "verify": ["inspect: agent workflow is discoverable"]
+    },
     "architecture_boundaries": {
       "status": "implemented",
       "artifacts": ["scripts/architecture-check"],
@@ -28,6 +33,7 @@ Use schema version `2`:
   },
   "managed_artifacts": [
     ".harness/manifest.json",
+    "AGENTS.md",
     "docs/index.md"
   ],
   "commands": {
@@ -82,9 +88,11 @@ The supported deterministic inspection vocabulary is closed:
 - `inspect: generated paths have regeneration evidence`
 - `inspect: findings have evidence and remediation`
 - `inspect: links resolve`
+- `inspect: agent workflow is discoverable`
 - `inspect: manifest matches observed artifacts`
 
 Validation rejects non-string or empty entries, unknown inspection procedures, malformed command tokens, shell syntax, absolute or parent-traversal paths, timestamps, hashes, secrets, transient results, and machine-specific values. `doctor` validates this grammar before attempting to resolve or run evidence.
+`inspect: agent workflow is discoverable` is valid only after the bootstrap content, linked paths, command map, stable verification evidence, and a recorded check/test/eval command have been inspected or run when available; it does not claim that an arbitrary runtime loaded or followed the contract.
 - `managed_artifacts` is a stable, sorted list of files created or materially structured by Kuskus. It grants no overwrite authority.
 - `commands` contains the stable slots `setup`, `dev`, `format`, `check`, `test`, `eval`, `doctor`, and `gc` in that order. Record only found or verified command strings and use `null` when a slot is not applicable; do not invent commands.
 - Every deferred item contains exactly `capability`, `reason`, and `next_step` and corresponds to a `partial` or `deferred` capability.
@@ -98,6 +106,7 @@ The v2 taxonomy keeps independent outcomes observable:
 
 ```text
 application_scaffold
+agent_workflow
 knowledge_base
 repository_commands
 quality_checks
@@ -116,12 +125,14 @@ entropy_control
 ```
 
 Omit capabilities below the selected profile unless they already exist or are relevant to a deferred higher-profile request. Keep `workspace_cleanup` and `entropy_control` independent: removing caches or build output cannot make entropy control `implemented`.
+`agent_workflow` is a Lite baseline for every profile. Stronger evaluation, review, and enforcement outcomes remain independent capabilities.
 
 For `full`, include every applicable high-autonomy capability with an honest status. A non-interactive project may record `interactive_legibility: not_applicable`; a project that cannot safely run concurrently may record `workspace_isolation: not_applicable` with its reason.
 
 ## v1 migration
 
 `upgrade` and `reconcile` may migrate a v1 manifest in place. Preserve the v1 profile, project observation, commands, managed artifacts, capability evidence, and deferred reasons, but never preserve obsolete capability identifiers in the v2 `capabilities` object.
+`agent_workflow` is a new baseline outcome. A v1 manifest without it remains absent during schema-only migration; `upgrade` or `reconcile` must bootstrap and inspect `AGENTS.md` before adding it, so migration never points at a missing contract.
 
 ### Capability mapping
 

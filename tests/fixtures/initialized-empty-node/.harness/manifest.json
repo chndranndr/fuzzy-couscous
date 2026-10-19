@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "profile": "lite",
+  "project": {
+    "kind": "empty",
+    "stacks": ["node"]
+  },
+  "capabilities": {
+    "agent_workflow": {
+      "status": "implemented",
+      "artifacts": ["AGENTS.md", "docs/index.md"],
+      "verify": ["inspect: agent workflow is discoverable"]
+    }
+  },
+  "managed_artifacts": [
+    ".harness/manifest.json",
+    "AGENTS.md",
+    "docs/index.md"
+  ],
+  "commands": {
+    "setup": null,
+    "dev": null,
+    "format": null,
+    "check": "python -m json.tool .harness/manifest.json",
+    "test": null,
+    "eval": null,
+    "doctor": null,
+    "gc": null
+  },
+  "deferred": [],
+  "evidence_gaps": []
+}
