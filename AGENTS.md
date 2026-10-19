@@ -39,9 +39,9 @@ For every task in this repository:
 1. Read this map, [the detailed workflow](skills/kuskus/references/workflows.md#repository-local-work-after-initialization), `docs/index.md`, and `.harness/manifest.json`.
 2. Inspect the affected source, callers, commands, tests, requirements, and user-owned changes before editing.
 3. State the actual problem, observable acceptance criteria, non-goals, and smallest safe scope.
-4. Use strict TDD (`red -> green -> refactor`) only for applicable behavior code; use proportionate verification for other surfaces.
-5. Test behavior, boundaries, failure modes, and explicit invariants rather than incidental implementation details.
-6. Run relevant checks, review the result, and report pass, fail, skipped, or blocked evidence. Remove only evidenced in-scope code with the smallest safe diff.
+4. Identify the changed contract and reuse the cheapest existing check that can falsify it; a check that never reaches the defect is not evidence, and required CI checks are not weakened.
+5. Use strict TDD (`red -> green -> refactor`) only for applicable behavior code; an existing failing behavior test satisfies the red step, and a new test file is not mandatory. Add tests only for uncovered behavior, boundaries, failure modes, or invariants, and use proportionate verification for other surfaces.
+6. Broaden verification to affected boundaries and plausible regressions, then review the result and report pass, fail, skipped, or blocked evidence with its actual scope. Remove only evidenced in-scope code with the smallest safe diff.
 
 ## Change workflow
 

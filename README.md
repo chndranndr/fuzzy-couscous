@@ -126,6 +126,8 @@ omp plugin install kuskus@kuskus
 
 After installation, invoke `/skill:kuskus init auto`. OMP installs the same `skills/kuskus/SKILL.md` discovered by Pi.
 
+The root `package.json` is a private, identity-only manifest for OMP's installed-plugin scan; it declares no extensions or runtime dependencies. Skill discovery remains at `skills/kuskus/SKILL.md`.
+
 ## Migrating from Harness
 
 Update existing installs rather than keeping a second skill copy:
@@ -150,6 +152,7 @@ Workspace cleanup and semantic entropy control are separate capabilities. Cache/
 
 ```text
 AGENTS.md
+package.json
 .harness/
 └── manifest.json
 .github/

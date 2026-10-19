@@ -20,9 +20,9 @@ The target `AGENTS.md` bootstraps the full contract in [Repository-local work af
 
 - inspect existing code, callers, commands, tests, requirements, and user-owned changes;
 - state the actual problem, observable acceptance criteria, non-goals, and smallest safe scope;
-- use strict TDD (`red -> green -> refactor`) only for applicable behavior code, and proportionate verification for other surfaces;
-- test behavior, boundaries, failure modes, and explicit invariants—not incidental implementation details;
-- run verification, review the result, and report concrete pass, fail, skipped, or blocked evidence;
+- reuse the cheapest existing check that can falsify the changed contract;
+- use strict TDD (`red -> green -> refactor`) only for applicable behavior code, with proportionate verification for other surfaces, and add or extend tests only for uncovered behavior, boundaries, failure modes, or invariants;
+- run verification, review the result, and report concrete pass, fail, skipped, or blocked evidence with its actual scope, including unexercised surfaces;
 - remove only evidenced, in-scope slop with the smallest safe diff.
 
 `init` bootstraps this concise contract and its command/evidence links; it does not need to be invoked for ordinary work.

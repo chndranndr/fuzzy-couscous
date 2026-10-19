@@ -64,7 +64,8 @@ INSPECTION_PROCEDURES = frozenset(
 )
 
 WORKFLOW_MARKERS = (
-    "For every task",
+    # "For every task" is fixture-only phrasing; generated contracts paraphrase
+    # it, so grading generated bootstrap content on it is a wording lottery.
     "observable acceptance criteria",
     "non-goals",
     "red -> green -> refactor",
@@ -124,7 +125,7 @@ def assert_agent_workflow_manifest(manifest: dict[str, Any], label: str) -> None
     if not isinstance(commands, dict) or not any(commands.get(slot) for slot in ("check", "test", "eval")):
         raise AssertionError(f"{label} agent_workflow lacks a stable check, test, or eval command")
     verify = capability.get("verify")
-    if verify != ["inspect: agent workflow is discoverable"]:
+    if not isinstance(verify, list) or "inspect: agent workflow is discoverable" not in verify:
         raise AssertionError(f"{label} agent_workflow lacks discoverability evidence")
     if not all(resolves_verify_entry(entry, commands) for entry in verify):
         raise AssertionError(f"{label} agent_workflow has unresolved evidence")
@@ -801,6 +802,11 @@ def test_marketplace_package() -> None:
     if plugin is None:
         raise AssertionError("kuskus plugin is missing from the marketplace")
     assert_equal(plugin.get("source"), "./", "kuskus plugin source is wrong")
+    package_manifest = json.loads(read_text(ROOT / "package.json"))
+    assert_equal(package_manifest.get("name"), "kuskus", "package manifest has the wrong name")
+    assert_equal(package_manifest.get("private"), True, "package manifest must remain private")
+    if any(key in package_manifest for key in ("dependencies", "devDependencies", "omp", "pi")):
+        raise AssertionError("Kuskus package manifest must not add dependencies or extensions")
     if not (ROOT / "skills" / "kuskus" / "SKILL.md").is_file():
         raise AssertionError("shared Kuskus skill file is missing")
 
@@ -879,7 +885,7 @@ def test_initialized_manifest_contract() -> None:
     managed_artifacts = manifest.get("managed_artifacts")
     if not isinstance(managed_artifacts, list):
         raise AssertionError("initialized manifest lacks managed artifacts")
-    for artifact in (".harness/manifest.json", "AGENTS.md", "docs/index.md"):
+    for artifact in (".harness/manifest.json", "AGENTS.md", "docs/index.md", "package.json"):
         if artifact not in managed_artifacts:
             raise AssertionError(f"initialized manifest omits {artifact}")
     for artifact in managed_artifacts:

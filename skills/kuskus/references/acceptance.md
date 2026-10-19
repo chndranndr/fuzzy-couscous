@@ -14,8 +14,8 @@ Every profile must bootstrap a concise operating contract into `AGENTS.md`. Acce
 
 - it applies to all ordinary engineering tasks after initialization;
 - it points to `docs/index.md`, `.harness/manifest.json`, the canonical workflow, and stable verification commands;
-- its content names observable acceptance criteria, premise and scope checks, strict TDD (`red -> green -> refactor`) only for applicable behavior code, and proportionate verification for other surfaces;
-- it requires behavior-focused assertions, concrete evidence, and smallest-safe-diff cleanup;
+- its content names observable acceptance criteria, premise and scope checks, reuse of the cheapest existing falsifying check, strict TDD (`red -> green -> refactor`) only for applicable behavior code, test additions only for uncovered behavior, boundaries, failure modes, or invariants, and proportionate verification for other surfaces;
+- it requires behavior-focused assertions, evidence reported with its actual scope (including unexercised surfaces), and smallest-safe-diff cleanup;
 - `agent_workflow` is not marked implemented from file presence alone: inspect the bootstrap content, linked paths, command map, and `verify` evidence;
 - prompt-level adherence is a separate evaluation. Static checks do not prove that an arbitrary runtime loaded or followed the contract.
 
@@ -67,6 +67,8 @@ Upgrade preserves the previous working checks and adds no lower-profile regressi
 - `$kuskus harden` in Codex or `/skill:kuskus harden` in Pi/OMP accepts a textual failure description without an issue tracker and may consume a readable issue or log reference.
 - It classifies the missing capability as a knowledge, verification, architecture-boundary, domain-invariant, observability, agent-legibility/tooling, or review gap.
 - Deterministic recurring failures prefer tests, validators, lints, architecture checks, or evaluations over growth of `AGENTS.md`.
+- An existing guardrail is extended for the same failure class before a parallel check or instruction is added; distinct boundary risks may still need separate cases.
+- The hardened guardrail is exercised against the original failure class as a negative control and the correct case where safe; an unexercised control is reported as a limitation rather than validation.
 - The hardening change preserves existing user-owned rules and includes regression/evaluation evidence that detects the original failure class where practical.
 - An un-reproducible or unsafe failure produces a partial result with evidence and a next action rather than an invented rule.
 

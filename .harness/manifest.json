@@ -96,6 +96,7 @@
     "AGENTS.md",
     "README.md",
     "docs/index.md",
+    "package.json",
     "skills/kuskus/SKILL.md",
     "skills/kuskus/agents/openai.yaml",
     "skills/kuskus/references/acceptance.md",
